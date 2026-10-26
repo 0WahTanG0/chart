@@ -3,23 +3,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600&display=swap">
 <style>
-/* Layout: sticky top bar with two tabs; setup is a single column of panels, the schedule is a full-width table with a pinned name column. */
+/* Layout: sticky top bar with two tabs; setup is a column of four panels, the schedule is a full-width table with a pinned name column. */
 :root {
   --bg: #eceff4; --surface: #ffffff; --surface-2: #f5f7fa; --fg: #151a23; --muted: #5a6374;
-  --line: #d6dbe4; --accent: #2a55c9; --accent-fg: #ffffff; --danger: #c3352b; --ok: #1d8048; --warn: #a96500;
-  --s-work: #2f6be0; --s-mandatory: #7a3dcf; --s-vacation: #e2851a; --s-desiredOff: #2a9459; --s-off: #8b93a1;
+  --line: #d6dbe4; --accent: #2a55c9; --accent-fg: #ffffff; --danger: #c3352b; --ok: #1d8048; --warn: #a76300;
   --font: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
   --display: "Unbounded", "Golos Text", system-ui, sans-serif;
   --radius: 12px;
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 4.5V3.2a3 3 0 0 1 6 0v1.3h.5v5h-7v-5zm1.3 0h3.4V3.2a1.7 1.7 0 0 0-3.4 0z'/%3E%3C/svg%3E");
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0e1117; --surface: #171b23; --surface-2: #1e232d; --fg: #e7eaf0; --muted: #98a1b2;
-  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640;
-  --s-off: #6d7584; color-scheme: dark } }
+  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #0e1117; --surface: #171b23; --surface-2: #1e232d; --fg: #e7eaf0; --muted: #98a1b2;
-  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640;
-  --s-off: #6d7584; color-scheme: dark }
+  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640; color-scheme: dark }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
@@ -39,120 +37,119 @@ main { padding-block: 16px 40px; padding-left: max(16px, env(safe-area-inset-lef
   max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
 #setup { max-width: 640px; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.panel > * { min-width: 0; }
 .panel h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
-.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+.panel h2.sub { padding-top: 8px; border-top: 1px solid var(--line); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 40px; flex-wrap: wrap; }
 .row + .row { border-top: 1px solid var(--line); padding-top: 10px; }
-select, input[type="text"] { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
-input[type="text"] { width: 100%; }
-.stepper { display: inline-flex; align-items: center; gap: 4px; }
+.row small { color: var(--muted); font-size: 12px; }
+select, input[type="text"], input[type="number"] { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; flex: none; }
 .stepper output { min-width: 56px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .stepper button { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); font-size: 18px; line-height: 1; }
 .stepper button:disabled { opacity: .4; cursor: default; }
-.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 9px 14px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
-.btn:disabled { opacity: .45; cursor: default; }
-.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; justify-content: center; padding: 14px; font-size: 16px; }
+.schema { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.schema .stepper output { min-width: 28px; font-size: 18px; }
+.schema > b { font-size: 20px; color: var(--muted); }
+.times { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.times select { width: 86px; font-variant-numeric: tabular-nums; padding: 7px 6px; font-weight: 600; }
+.num { display: inline-flex; align-items: center; gap: 6px; flex: none; font-weight: 600; }
+.num input { width: 84px; text-align: center; font-weight: 600; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 9px 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; padding: 14px; font-size: 16px; }
 .btn.danger { color: var(--danger); }
 .btns { display: flex; gap: 8px; flex-wrap: wrap; }
-.emp { display: grid; gap: 4px; text-align: left; width: 100%; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
-.emp b { font-weight: 600; }
-.emp-row { display: flex; gap: 8px; align-items: stretch; }
-.emp-row .emp { flex: 1; min-width: 0; }
-.emp-row .del { flex: none; border: 1px solid var(--line); background: var(--surface-2); color: var(--danger); border-radius: 10px; padding: 0 12px; font-weight: 600; min-width: 44px; }
-.emp-row .del.confirm { background: var(--danger); color: #fff; border-color: transparent; }
-.addform { display: flex; gap: 8px; }
-.addform input { flex: 1; }
-.sched th.name button.nm-btn { all: unset; cursor: pointer; display: block; }
-.sched th.name button.nm-btn:focus-visible { outline: 2px solid var(--accent); }
-.banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
-.emp .meta { color: var(--muted); font-size: 13px; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
 .note { color: var(--muted); font-size: 13px; margin: 0; }
-.summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.summary h1 { margin: 0; font-size: 18px; font-weight: 600; text-wrap: balance; }
-.pill { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
-.pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
-.pill.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
-details summary { cursor: pointer; font-weight: 600; }
-details ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 3px; max-height: 160px; overflow: auto; font-size: 14px; }
-.tablewrap { overflow: auto; max-height: 68vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); -webkit-overflow-scrolling: touch; }
+.period { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.period select { flex: 1; min-width: 150px; font-weight: 600; }
+.people { display: grid; gap: 8px; }
+.person { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.person b { display: block; font-weight: 600; }
+.person small { color: var(--muted); font-size: 13px; }
+.person::after { content: "›"; font-size: 22px; color: var(--muted); line-height: 1; }
+.addform { display: flex; gap: 6px; }
+.addform input { flex: 1; width: 0; }
+.status h1 { margin: 0; font-size: 17px; font-weight: 600; text-wrap: balance; }
+.status h1.ok { color: var(--ok); }
+.status p { margin: 0; }
+.status h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.status ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; max-height: 180px; overflow: auto; font-size: 14px; }
+.status .seg { display: flex; flex-wrap: wrap; }
+.status-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.banner { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn) 13%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+.banner ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.strict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 14px; }
+.strict > span { color: var(--muted); }
+.strict label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.strict input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.tablewrap { overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); -webkit-overflow-scrolling: touch; }
 table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
-.sched th, .sched td { padding: 0; border-bottom: 1px solid var(--line); }
-.sched thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); width: 46px; min-width: 46px; height: 46px; font-size: 12px; font-weight: 500; color: var(--muted); }
-.sched thead th b { display: block; font-size: 14px; color: var(--fg); }
+.sched th, .sched td { padding: 0; border-bottom: 1px solid var(--line); text-align: center; }
+.sched thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); min-width: 46px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.day-btn { border: 0; background: transparent; width: 46px; min-height: 48px; display: grid; place-content: center; line-height: 1.15; color: inherit; padding: 2px 0; }
+.day-btn b { font-size: 14px; color: var(--fg); }
+.day-btn small { font-size: 9px; font-weight: 700; color: var(--accent); }
 .sched thead th.we, .sched thead th.we b { color: var(--danger); }
-.sched th.name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 4px 10px; min-width: 132px; max-width: 132px; border-right: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.sched th.name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 4px 10px; min-width: 128px; max-width: 128px; border-right: 1px solid var(--line); font-weight: 600; font-size: 13px; }
 .sched thead th.corner { left: 0; z-index: 3; text-align: left; padding: 4px 10px; border-right: 1px solid var(--line); color: var(--fg); font-weight: 600; }
 .sched th.name .nm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fact { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
-.fact.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
-.fact.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 17%, transparent); }
+.dir { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.hrs { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: var(--muted); background: var(--surface-2); }
+.hrs.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
 .cell { position: relative; width: 42px; height: 42px; margin: 2px; border: 0; border-radius: 8px; display: grid; place-content: center; line-height: 1.05;
-  background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--fg); transition: background .35s, color .35s; }
+  background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--fg); transition: background .35s, color .35s; }
 .cell b { font-size: 13px; font-weight: 700; }
+.cell.on b { font-size: 11px; letter-spacing: -.02em; }
 .cell i { font-style: normal; font-size: 9px; opacity: .85; }
 .cell.on { background: var(--c); color: #fff; }
-.cell.locked::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 2px; background: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 4.5V3.2a3 3 0 0 1 6 0v1.3h.5v5h-7v-5zm1.3 0h3.4V3.2a1.7 1.7 0 0 0-3.4 0z'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 4.5V3.2a3 3 0 0 1 6 0v1.3h.5v5h-7v-5zm1.3 0h3.4V3.2a1.7 1.7 0 0 0-3.4 0z'/%3E%3C/svg%3E") center/contain no-repeat; }
+.cell.locked::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; background: currentColor;
+  -webkit-mask: var(--lock-icon) center/contain no-repeat; mask: var(--lock-icon) center/contain no-repeat; }
+.cell.changed { outline: 2px dashed var(--warn); outline-offset: 1px; }
 .cell.flash { animation: flash 1.1s ease-out; }
 @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.08); } 100% { box-shadow: 0 0 0 0 transparent; transform: none; } }
-.tot { display: grid; place-content: center; width: 42px; height: 34px; margin: 2px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+.tot { display: grid; place-content: center; width: 42px; height: 40px; margin: 2px; border-radius: 8px; font-weight: 700; line-height: 1.05; }
+.tot b { font-size: 14px; }
+.tot small { font-size: 10px; font-weight: 600; opacity: .8; }
+.tot sup { font-size: 8px; color: var(--accent); margin-left: 1px; }
 .tot.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
 .tot.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
 .sched tfoot th, .sched tfoot td { border-bottom: 0; }
-.tot small { font-size: 9px; font-weight: 700; color: var(--accent); margin-left: 1px; }
-.dir { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
-.legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--c); margin-right: 6px; vertical-align: -1px; }
+.legend .sw::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--c); margin-right: 6px; vertical-align: -1px; }
+.legend .lk::before { content: ""; display: inline-block; width: 10px; height: 10px; background: currentColor; margin-right: 6px; vertical-align: -1px;
+  -webkit-mask: var(--lock-icon) center/contain no-repeat; mask: var(--lock-icon) center/contain no-repeat; }
+.legend .ch::before { content: ""; display: inline-block; width: 9px; height: 9px; border: 2px dashed var(--warn); border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 .sheet-wrap { position: fixed; inset: 0; z-index: 20; background: rgb(8 10 15 / .45); display: flex; align-items: flex-end; justify-content: center; }
 .sheet { background: var(--surface); width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0;
   padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; animation: up .22s ease-out; }
+.sheet > * { min-width: 0; }
 @keyframes up { from { transform: translateY(30px); opacity: .6; } }
 .sheet header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.sheet header h3 { margin: 0; font-size: 17px; font-weight: 600; min-width: 0; }
-.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.status-grid button { border: 2px solid transparent; border-radius: 10px; padding: 10px; text-align: left; font-weight: 600;
-  background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--fg); }
-.status-grid button[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 26%, transparent); }
-.switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 500; }
-.switch input { appearance: none; width: 50px; height: 30px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s; flex: none; }
-.switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgb(0 0 0 / .3); }
-.switch input:checked { background: var(--accent); }
-.switch input:checked::after { transform: translateX(20px); }
+.sheet header h3 { margin: 0; font-size: 17px; font-weight: 600; min-width: 0; line-height: 1.25; }
+.sheet header h3 small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.sheet h4 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.box { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 10px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.modes button, .kinds button { border: 2px solid transparent; border-radius: 10px; padding: 9px 6px; font-weight: 600; font-size: 14px;
+  background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--fg); }
+.modes button[aria-pressed="true"], .kinds button[aria-pressed="true"] { background: var(--c); color: #fff; border-color: var(--c); }
+.kinds { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.kinds button { font-size: 12px; padding: 7px 2px; line-height: 1.2; }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .cal .wd { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; }
-.cal button { height: 40px; border: 0; border-radius: 9px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.cal button { height: 44px; border: 0; border-radius: 9px; background: var(--surface-2); font-variant-numeric: tabular-nums; display: grid; place-content: center; line-height: 1.1; padding: 0; }
+.cal button small { font-size: 9px; font-weight: 600; }
 .cal button.we { color: var(--danger); }
 .cal button[data-s] { background: var(--c); color: #fff; font-weight: 700; }
-.kv { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
-.kv span:first-child { color: var(--muted); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opts button { border: 2px solid transparent; border-radius: 10px; padding: 10px; text-align: left; font-weight: 600; line-height: 1.25;
+  background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--fg); }
+.opts button small { font-weight: 500; color: var(--muted); }
+.opts button[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 28%, transparent); }
 .shot { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; -webkit-touch-callout: default; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; background: var(--fg); color: var(--bg);
   padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
-.cell b { font-size: 11px; letter-spacing: -.02em; }
-.cell:not(.on) b { font-size: 13px; letter-spacing: 0; }
-.tot { height: 40px; line-height: 1.05; }
-.tot b { font-size: 14px; }
-.tot small { font-size: 10px; font-weight: 600; opacity: .8; }
-.tot sup { font-size: 8px; color: var(--accent); margin-left: 1px; }
-.tot.over { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
-.fact.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
-.times { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-.times input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px; font-variant-numeric: tabular-nums; min-width: 0; width: 92px; }
-.warn-text { color: var(--warn); }
-.status-grid small { font-weight: 500; color: var(--muted); }
-.sched td { text-align: center; }
-.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-.week button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 9px; padding: 6px 0; display: grid; font-weight: 600; font-size: 13px; }
-.week button small { font-size: 10px; font-weight: 500; color: var(--muted); }
-.week button.work { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); }
-.week button.off { background: color-mix(in srgb, #4f5968 30%, transparent); border-color: #4f5968; }
-.wk-label { display: flex; flex-direction: column; gap: 2px; }
-.cal button.wk { opacity: .55; }
-.check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; white-space: nowrap; }
-.check input { width: 18px; height: 18px; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 
@@ -169,500 +166,582 @@ table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric
 <div id="toast" class="toast" hidden></div>
 
 <script>
-/* ---------- Модели ---------- */
+/* ---------- Данные ---------- */
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-const KINDS = {
-  long: { title: 'Длинная', color: '#2f6be0' },
-  early: { title: 'Короткая, утро', color: '#0e8a80' },
-  late: { title: 'Короткая, вечер', color: '#6a4fd8' },
-  own: { title: 'Своё время', color: '#c2417a' }
-};
-const BASE_KINDS = ['long', 'early', 'late'];
-const STATUS = {
-  work: { title: 'Смена', short: 'С' },
-  mandatory: { title: 'Обязательная смена', short: 'О' },
-  vacation: { title: 'Отпуск', short: 'Отп', color: '#e2851a' },
-  desiredOff: { title: 'Желаемый выходной', short: 'Жв', color: '#2a9459' },
-  off: { title: 'Выходной', short: 'В', color: '#8b93a1' },
-  fixedOff: { title: 'Обязательный выходной', short: 'Вых', color: '#4f5968' }
-};
-const isWork = s => s === 'work' || s === 'mandatory';
+const COLORS = { long: '#2f6be0', early: '#0e8a80', late: '#6a4fd8', own: '#c2417a', any: '#55607a', work: '#2f6be0', off: '#7d8595', vacation: '#e2851a' };
+const SHIFT_NAMES = { long: 'Полная', early: 'Короткая, день', late: 'Короткая, вечер' };
+const CODE = ['off', 'long', 'early', 'late', 'own'];
+const VAL = { off: 0, long: 1, early: 2, late: 3, own: 4 };
+const isWorkCode = c => !!c && c !== 'off' && c !== 'vacation';
 const daysIn = (y, m) => new Date(y, m, 0).getDate();
 const wdIndex = (y, m, d) => (new Date(y, m - 1, d).getDay() + 6) % 7;
 const fmtH = h => Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',');
-const signed = h => (h > 0 ? '+' : h < 0 ? '−' : '') + fmtH(Math.abs(h));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const range = n => [...Array(n).keys()];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
 const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-const shiftOf = (ctx, k, emp) => k === 'own' && emp?.shift ? emp.shift : ctx.shifts[k === 'own' ? 'early' : k];
-const kindHours = (ctx, k, emp) => { const s = shiftOf(ctx, k, emp); let d = toMin(s.end) - toMin(s.start); if (d <= 0) d += 1440; return d / 60; };
 const hm = t => { const [h, m] = t.split(':'); return String(+h) + (m === '00' ? '' : ':' + m); };
-const kindLabel = (ctx, k, emp) => { const s = shiftOf(ctx, k, emp); return `${hm(s.start)}–${hm(s.end)}`; };
-const kindTime = (ctx, k, emp) => { const s = shiftOf(ctx, k, emp); return `${s.start}–${s.end}`; };
-const cellColor = a => isWork(a.status) ? KINDS[a.kind || 'early'].color : STATUS[a.status].color;
+const spanHours = (s, e) => { let d = toMin(e) - toMin(s); if (d <= 0) d += 1440; return d / 60; };
+const ymKey = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
+const needFor = (ctx, day) => ctx.dayNeed[day] || { long: ctx.needLong, short: ctx.needShort };
+const dateTitle = (ctx, d) => `${d} ${MONTHS_GEN[ctx.month - 1]}, ${WD[wdIndex(ctx.year, ctx.month, d)].toLowerCase()}`;
+const shiftOf = (ctx, code, p) => code === 'own' ? { start: p.start, end: p.end } : ctx.shifts[code];
+const codeHours = (ctx, code, p) => spanHours(shiftOf(ctx, code, p).start, shiftOf(ctx, code, p).end);
+const codeLabel = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${hm(s.start)}–${hm(s.end)}`; };
+const codeTime = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${s.start}–${s.end}`; };
 
-const normEmp = e => ({ target: null, vac: [], des: [], man: [], off: [], weekWork: [], weekOff: [], kinds: ['long', 'short'], shift: null, tripleOff: false, director: false, ...e });
-const days = (a, b) => range(b - a + 1).map(i => a + i);
-// Пн=0 … Вс=6
-function samples() {
-  return [
-    { name: 'Софа', vac: days(1, 10), weekWork: [6, 0, 3, 4], weekOff: [1, 2, 5], kinds: ['long'] },
-    { name: 'Зарина Д.', vac: days(13, 20) },
-    { name: 'Зарина Г.', vac: days(17, 26) },
-    { name: 'Эльза', off: [2, 3] },
-    { name: 'Карина И.', off: [2], weekOff: [2, 6] },
-    { name: 'Юля', off: [3, 4, 7], tripleOff: true },
-    { name: 'ТК', off: [12], weekWork: [5, 6, 0, 3] },
-    { name: 'Карина Л.', off: [2, 3, 4, 5] },
-    { name: 'Алина', director: true, shift: { start: '10:00', end: '19:00' }, weekOff: [6, 0], weekWork: [1, 2, 3, 4, 5] },
-    { name: 'Лиза' },
-    { name: 'Полина' },
-    { name: 'Лера' }
-  ].map(e => normEmp({ id: uid(), ...e }));
+// Список на октябрь 2026: отпуска, выходные и рабочие дни отмечены в календарях сотрудников.
+function defaults() {
+  const staff = ['Софа', 'Зарина Д.', 'Зарина Г.', 'Эльза', 'Карина И.', 'Юля', 'ТК', 'Карина Л.', 'Лиза', 'Полина', 'Лера'].map(name => ({ id: uid(), name }));
+  const directors = [{ id: uid(), name: 'Алина', start: '10:00', end: '19:00', workDays: 5, offDays: 2 }];
+  const by = Object.fromEntries([...staff, ...directors].map(p => [p.name, p.id]));
+  const y = 2026, m = 10, marks = {};
+  const put = (name, day, code) => { (marks[by[name]] ||= {})[day] = code; };
+  for (let d = 1; d <= daysIn(y, m); d++) {
+    const wd = wdIndex(y, m, d); // Пн=0 … Вс=6
+    if (d <= 10) put('Софа', d, 'vacation');
+    else put('Софа', d, [6, 0, 3, 4].includes(wd) ? 'long' : 'off');
+    if (d >= 13 && d <= 20) put('Зарина Д.', d, 'vacation');
+    if (d >= 17 && d <= 26) put('Зарина Г.', d, 'vacation');
+    if (d === 2 || d === 3) put('Эльза', d, 'off');
+    if (d === 2 || wd === 2 || wd === 6) put('Карина И.', d, 'off');
+    if ([3, 4, 7].includes(d)) put('Юля', d, 'off');
+    if (d === 12) put('ТК', d, 'off');
+    else if ([5, 6, 0, 3].includes(wd)) put('ТК', d, 'any');
+    if (d >= 2 && d <= 5) put('Карина Л.', d, 'off');
+    if (wd === 6 || wd === 0) put('Алина', d, 'off');
+  }
+  return { year: y, month: m, staff, directors, marks: { [ymKey(y, m)]: marks } };
 }
-const fixedOffDay = (e, y, m, d) => e.off.includes(d) || e.weekOff.includes(wdIndex(y, m, d));
-const defaultShifts = () => ({ long: { start: '09:00', end: '22:00' }, early: { start: '12:00', end: '20:00' }, late: { start: '13:00', end: '21:00' } });
 
+// Сколько дней человек может отработать по своей схеме с учётом отметок.
+function maxWorkable(ctx, p) {
+  const m = ctx.marks[p.id] || {};
+  let run = 0, off = Infinity, days = 0;
+  for (let d = 1; d <= daysIn(ctx.year, ctx.month); d++) {
+    const c = m[d], can = isWorkCode(c) || (c !== 'off' && c !== 'vacation' && run < p.workDays && (run > 0 || off >= p.offDays));
+    if (can) { run++; off = 0; days++; } else { off = run > 0 ? 1 : off + 1; run = 0; }
+  }
+  return days;
+}
+// Норма часов: нужные часы делятся между сотрудниками по свободным дням, не меньше отмеченных смен и не больше лимита.
 function computeNorms(ctx) {
-  const D = daysIn(ctx.year, ctx.month), cap = ctx.maxHours, hL = kindHours(ctx, 'long'), hS = (kindHours(ctx, 'early') + kindHours(ctx, 'late')) / 2;
-  const total = D * (ctx.needLong * hL + ctx.needShort * hS);
-  const staff = ctx.employees.filter(e => !e.director);
-  const open = e => range(D).map(i => i + 1).filter(d => !e.vac.includes(d) && !fixedOffDay(e, ctx.year, ctx.month, d));
-  const shiftH = e => e.shift ? kindHours(ctx, 'own', e) : e.kinds.length === 1 && e.kinds[0] === 'long' ? hL : hS;
-  const fixedH = e => open(e).filter(d => e.man.includes(d) || e.weekWork.includes(wdIndex(ctx.year, ctx.month, d))).length * shiftH(e);
+  const D = daysIn(ctx.year, ctx.month), hL = codeHours(ctx, 'long'), hS = (codeHours(ctx, 'early') + codeHours(ctx, 'late')) / 2, cap = ctx.maxHours;
+  let total = 0;
+  for (let d = 1; d <= D; d++) { const n = needFor(ctx, d); total += n.long * hL + n.short * hS; }
+  const info = p => {
+    const m = ctx.marks[p.id] || {};
+    let open = 0, fixed = 0;
+    for (let d = 1; d <= D; d++) {
+      const c = m[d];
+      if (c === 'off' || c === 'vacation') continue;
+      open++;
+      if (isWorkCode(c)) fixed += c === 'any' ? hS : codeHours(ctx, c, p);
+    }
+    return { open, fixed, max: Math.max(fixed, maxWorkable(ctx, p) * hL) };
+  };
   const norms = {};
-  let rest = total, pool = [];
-  for (const e of staff) if (e.target != null) { norms[e.id] = e.target; rest -= e.target; } else pool.push(e);
-  // Норма не меньше обязательных смен и не больше лимита; остальное делится пропорционально свободным дням.
+  let rest = total, pool = ctx.people.filter(p => !p.director);
   for (let changed = true; changed && pool.length;) {
     changed = false;
-    const sum = pool.reduce((s, e) => s + open(e).length, 0) || 1;
-    for (const e of pool) {
-      const share = rest * open(e).length / sum, floor = Math.min(cap, fixedH(e)), all = open(e).length * shiftH(e);
-      const fixed = share < floor ? floor : share > cap ? cap : share > all ? all : null;
-      if (fixed != null) { norms[e.id] = Math.round(fixed); rest -= fixed; pool = pool.filter(x => x !== e); changed = true; break; }
+    const sum = pool.reduce((s, p) => s + info(p).open, 0) || 1;
+    for (const p of pool) {
+      const i = info(p), share = rest * i.open / sum, lo = Math.min(cap, i.fixed), hi = Math.min(cap, i.max);
+      const v = share < lo ? lo : share > hi ? hi : null;
+      if (v != null) { norms[p.id] = v; rest -= v; pool = pool.filter(x => x !== p); changed = true; break; }
     }
   }
-  const sum = pool.reduce((s, e) => s + open(e).length, 0) || 1;
-  for (const e of pool) norms[e.id] = Math.max(0, Math.round(rest * open(e).length / sum));
-  for (const e of ctx.employees) if (e.director) norms[e.id] = e.target ?? Math.min(cap, Math.max(fixedH(e), Math.round(total / Math.max(1, staff.length))));
-  return { norms, total, perPerson: staff.length ? total / staff.length : total };
+  const sum = pool.reduce((s, p) => s + info(p).open, 0) || 1;
+  for (const p of pool) norms[p.id] = Math.max(0, rest * info(p).open / sum);
+  for (const p of ctx.people) if (p.director) norms[p.id] = Math.min(cap, maxWorkable(ctx, p) * codeHours(ctx, 'own', p));
+  return norms;
 }
-const worked = (c, id) => Object.values(c.grid[id] || {}).reduce((s, a) => s + (isWork(a.status) ? a.hours : 0), 0);
-const groupsOn = (c, day) => { let L = 0, Sh = 0; for (const r of Object.values(c.grid)) if (r[day]?.counts) r[day].kind === 'long' ? L++ : Sh++; return [L, Sh]; };
-const dirExtra = (c, day) => Object.values(c.grid).some(r => r[day] && isWork(r[day].status) && !r[day].counts);
-const lockedCount = c => Object.values(c.grid).reduce((s, r) => s + Object.values(r).filter(a => a.locked).length, 0);
 
 /* ---------- Алгоритм ---------- */
-const W0 = { des: 100, short: 80, over: 40, hour: 10, hourAuto: 2, cap: 50, cons: 40, single: 25, triple: 300, change: 0 };
+// Значение клетки: 0 — не работает, 1 — полная, 2 — короткая днём, 3 — короткая вечером, 4 — директор в своё время (не в счёт смены).
+const W0 = { short: 80, over: 40, split: 5, hour: 2, cap: 50, cons: 40, gap: 40, single: 25, mark: 0, ban: 0, dirUse: 1e6, change: 0 };
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function shuffle(arr, r) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
-const groupOf = kind => kind === 'long' ? 1 : 2;
 
 class Board {
-  constructor(ctx, source, keep, w) {
-    this.ctx = ctx; this.w = w; this.D = daysIn(ctx.year, ctx.month); this.E = ctx.employees.length; this.base = null;
-    this.hL = kindHours(ctx, 'long'); this.hS = (kindHours(ctx, 'early') + kindHours(ctx, 'late')) / 2;
-    const { norms } = computeNorms(ctx);
-    this.norm = ctx.employees.map(e => norms[e.id]);
-    this.custom = ctx.employees.map(e => e.target != null);
-    this.dir = ctx.employees.map(e => !!e.director);
-    this.des = ctx.employees.map(e => new Set(e.des));
-    this.triple = ctx.employees.map(e => !!e.tripleOff);
-    this.own = ctx.employees.map(e => e.shift ? kindHours(ctx, 'own', e) : null);
-    this.allowed = ctx.employees.map(e => e.shift ? [2] : (e.kinds.length ? e.kinds : ['long', 'short']).map(groupOf).sort());
-    this.k = []; this.fx = []; this.mand = []; this.lc = []; this.cnt = []; this.why = [];
-    ctx.employees.forEach((emp, e) => {
-      const vac = new Set(emp.vac), man = new Set(emp.man), allowed = this.allowed[e], dflt = allowed.includes(2) ? 2 : 1;
-      this.k.push([]); this.fx.push([]); this.mand.push([]); this.lc.push([]); this.cnt.push([]); this.why.push([]);
+  // opt.mode: 'hard' — отметки неизменны; 'soft' — выходные и рабочие дни из календаря можно менять за штраф (отпуск — никогда).
+  constructor(ctx, src, opt) {
+    const P = ctx.people, norms = computeNorms(ctx), w = opt.w;
+    this.ctx = ctx; this.w = w; this.D = daysIn(ctx.year, ctx.month); this.E = P.length; this.base = null; this.ban = opt.ban || new Set();
+    // Галочки: нарушений правила не может стать больше, чем было (allow — сколько уже было у дня или человека).
+    this.strict = opt.strict || {}; this.allow = opt.allow || { days: {}, cap: {}, schema: {} };
+    this.norm = P.map(p => norms[p.id]);
+    this.dir = P.map(p => p.director);
+    this.W = P.map(p => p.workDays); this.Y = P.map(p => p.offDays);
+    this.H = [0, codeHours(ctx, 'long'), codeHours(ctx, 'early'), codeHours(ctx, 'late')];
+    this.own = P.map(p => p.director ? codeHours(ctx, 'own', p) : 0);
+    this.allowed = P.map(p => p.director ? (w.dirUse < 1e5 ? [0, 4, 1, 2, 3] : [0, 4]) : [0, 1, 2, 3]);
+    this.need = range(this.D).map(d => needFor(ctx, d + 1));
+    this.dirDays = opt.dirDays || null;
+    this.k = []; this.lock = []; this.must = []; this.soft = []; this.vac = []; this.mk = []; this.fixedSrc = [];
+    P.forEach((p, e) => {
+      for (const a of [this.k, this.lock, this.must, this.soft, this.vac, this.mk, this.fixedSrc]) a.push([]);
       for (let d = 0; d < this.D; d++) {
-        const day = d + 1, prev = source?.grid[emp.id]?.[day], wd = wdIndex(ctx.year, ctx.month, day);
-        const kept = keep && prev && isWork(prev.status) && allowed.includes(groupOf(prev.kind)) ? groupOf(prev.kind) : 0;
-        let k = 0, fx = false, mand = false, lc = null, cnt = false, why = null;
-        if (prev?.locked) { fx = true; lc = prev; k = isWork(prev.status) ? groupOf(prev.kind) : 0; cnt = !!prev.dirMin && k > 0; }
-        else if (vac.has(day)) { fx = true; why = 'vacation'; }
-        else if (emp.off.includes(day) || emp.weekOff.includes(wd)) { fx = true; why = 'fixedOff'; }
-        else if (man.has(day) || emp.weekWork.includes(wd)) { mand = true; k = kept || dflt; }
-        else k = kept;
-        this.k[e][d] = k; this.fx[e][d] = fx; this.mand[e][d] = mand; this.lc[e][d] = lc; this.cnt[e][d] = cnt; this.why[e][d] = why;
+        const day = d + 1, mk = ctx.marks[p.id]?.[day] || null, fixedV = opt.fixed?.[p.id]?.[day], prev = src?.grid[p.id]?.[day];
+        let v = opt.keep && prev ? VAL[prev.code] ?? 0 : 0, lock = false, must = false, soft = null, fromFixed = false;
+        if (mk === 'vacation') { lock = true; v = 0; }
+        else if (fixedV !== undefined) { lock = true; v = fixedV; fromFixed = true; }
+        else if (mk && opt.mode === 'soft') { soft = mk; v = mk === 'any' ? (v >= 1 && v <= 3 ? v : 2) : VAL[mk]; }
+        else if (mk === 'any') { must = true; if (!(v >= 1 && v <= 3)) v = 2; }
+        else if (mk) { lock = true; v = VAL[mk]; }
+        if (!lock && !this.can(e, d, v)) v = 0;
+        this.k[e][d] = v; this.lock[e][d] = lock; this.must[e][d] = must; this.soft[e][d] = soft;
+        this.vac[e][d] = mk === 'vacation'; this.mk[e][d] = mk; this.fixedSrc[e][d] = fromFixed;
       }
     });
   }
-  works(e, d) { return this.k[e][d] > 0; }
-  hours(e, d) { const lc = this.lc[e][d]; if (lc) return isWork(lc.status) ? lc.hours : 0; const v = this.k[e][d]; return v === 1 ? this.hL : v === 2 ? (this.own[e] ?? this.hS) : 0; }
-  set(e, d, v) { this.k[e][d] = v; }
-  counts(e, d) { return this.works(e, d) && (!this.dir[e] || this.cnt[e][d]); }
-  groups(d) { let L = 0, Sh = 0; for (let e = 0; e < this.E; e++) if (this.counts(e, d)) this.k[e][d] === 1 ? L++ : Sh++; return [L, Sh]; }
-  run(e, d) { let c = 1, i = d - 1, j = d + 1; while (i >= 0 && this.works(e, i)) { c++; i--; } while (j < this.D && this.works(e, j)) { c++; j++; } return c; }
+  // Директора в смену можно ставить только в разрешённые дни (dirDays), если они заданы.
+  can(e, d, v) { return this.allowed[e].includes(v) && !(this.dir[e] && v >= 1 && v <= 3 && this.dirDays && !this.dirDays.has(d)); }
+  hrs(e, v) { return v === 4 ? this.own[e] : this.H[v]; }
+  markDiff(e, d) { const mk = this.mk[e][d], v = this.k[e][d]; return !!mk && mk !== 'vacation' && (mk === 'any' ? v === 0 : v !== VAL[mk]); }
+  run(e, d) { let c = 1, i = d - 1, j = d + 1; while (i >= 0 && this.k[e][i]) { c++; i--; } while (j < this.D && this.k[e][j]) { c++; j++; } return c; }
+  gapOk(e, d) {
+    if (d > 0 && this.k[e][d - 1]) return true;
+    let g = 0, i = d - 1;
+    while (i >= 0 && !this.k[e][i]) { g++; i--; }
+    return i < 0 || g >= this.Y[e];
+  }
+  groups(d) { let L = 0, Ea = 0, Ta = 0; for (let e = 0; e < this.E; e++) { const v = this.k[e][d]; if (v === 1) L++; else if (v === 2) Ea++; else if (v === 3) Ta++; } return [L, Ea, Ta]; }
   empCost(e) {
-    const w = this.w, mc = this.ctx.maxCons;
-    let tot = 0, run = 0, free = false, over = 0, des = 0, ch = 0, singles = 0, offRun = 0, maxOff = 0;
+    const w = this.w, W = this.W[e], Y = this.Y[e], row = this.k[e];
+    let tot = 0, run = 0, runStart = 0, free = false, over = 0, gap = 0, singles = 0, mk = 0, du = 0, ch = 0, off = -1;
     for (let d = 0; d <= this.D; d++) {
-      const wk = d < this.D && this.works(e, d);
-      if (wk) {
-        tot += this.hours(e, d); run++; offRun = 0;
-        if (!this.fx[e][d] && !this.mand[e][d]) free = true;
-        if (this.des[e].has(d + 1)) des++;
-      } else {
-        if (free && run > mc) over += run - mc;
-        if (free && run === 1 && d - 1 > 0 && d < this.D) singles++;
-        run = 0; free = false;
-        if (d < this.D && ++offRun > maxOff) maxOff = offRun;
+      const v = d < this.D ? row[d] : 0;
+      if (d < this.D) {
+        if (v) tot += this.hrs(e, v);
+        if (this.soft[e][d] !== null && this.markDiff(e, d)) mk += this.ban.has(e * 64 + d) ? w.ban : w.mark;
+        if (this.dir[e] && v >= 1 && v <= 3 && !this.lock[e][d]) du++;
+        if (this.base && this.base[e][d] !== v) ch++;
       }
-      if (d < this.D && this.base && this.base[e][d] !== this.k[e][d]) ch++;
+      if (v) {
+        if (run === 0) { runStart = d; if (off >= 0 && off < Y) gap += Y - off; }
+        run++;
+        if (!this.lock[e][d] && !this.must[e][d]) free = true;
+      } else {
+        if (run > 0) {
+          if (run > W) over += run - W;
+          if (run === 1 && free && W > 1 && runStart > 0 && d < this.D) singles++;
+          run = 0; free = false; off = 0;
+        }
+        if (off >= 0) off++;
+      }
     }
-    return (this.triple[e] && maxOff < 3 ? w.triple : 0) + des * w.des + Math.abs(tot - this.norm[e]) * (this.custom[e] ? w.hour : w.hourAuto)
-      + Math.max(0, tot - this.ctx.maxHours) * w.cap + over * w.cons + singles * w.single + ch * w.change;
+    const capOver = Math.max(0, tot - this.ctx.maxHours), sc = over + gap;
+    return Math.abs(tot - this.norm[e]) * w.hour + this.limited(this.strict.hours, capOver, this.allow.cap[e], w.cap)
+      + this.limited(this.strict.schema, sc, this.allow.schema[e], w.cons) + singles * w.single + mk + du * w.dirUse + ch * w.change;
+  }
+  limited(on, amount, allowed = 0, weight) {
+    return on ? Math.max(0, amount - allowed) * 5000 + Math.min(amount, allowed) * weight : amount * weight;
   }
   dayCost(d) {
-    const [L, Sh] = this.groups(d), nL = this.ctx.needLong, nS = this.ctx.needShort;
-    return (Math.max(0, nL - L) + Math.max(0, nS - Sh)) * this.w.short + (Math.max(0, L - nL) + Math.max(0, Sh - nS)) * this.w.over;
+    const [L, Ea, Ta] = this.groups(d), n = this.need[d], Sh = Ea + Ta, w = this.w;
+    return this.limited(this.strict.staff, Math.max(0, n.long - L) + Math.max(0, n.short - Sh), this.allow.days[d], w.short) + (Math.max(0, L - n.long) + Math.max(0, Sh - n.short)) * w.over
+      + Math.max(0, Math.abs(Ea - Ta) - 1) * w.split;
   }
   total() { let s = 0; for (let e = 0; e < this.E; e++) s += this.empCost(e); for (let d = 0; d < this.D; d++) s += this.dayCost(d); return s; }
   clone() { const b = Object.create(Board.prototype); Object.assign(b, this); b.k = this.k.map(r => r.slice()); return b; }
   greedy(r, cov) {
-    const mc = this.ctx.maxCons;
-    const budget = range(this.E).map(e => this.norm[e] - range(this.D).reduce((s, d) => s + (this.fx[e][d] || this.mand[e][d] ? this.hours(e, d) : 0), 0));
+    const budget = range(this.E).map(e => this.norm[e] - range(this.D).reduce((s, d) => s + (this.k[e][d] ? this.hrs(e, this.k[e][d]) : 0), 0));
     const tie = range(this.E).map(() => r());
+    const ok = (e, d) => this.run(e, d) <= this.W[e] && this.gapOk(e, d);
     for (let d = 0; d < this.D; d++) {
-      const [L, Sh] = this.groups(d);
-      for (const [v, need, have0, h] of [[1, this.ctx.needLong, L, this.hL], [2, this.ctx.needShort, Sh, this.hS]]) {
-        let have = have0;
-        const order = range(this.E).filter(e => !this.dir[e] && !this.fx[e][d] && !this.works(e, d) && this.allowed[e].includes(v)).sort((a, b) => {
-          const da = this.des[a].has(d + 1), db = this.des[b].has(d + 1);
-          if (da !== db) return da ? 1 : -1;
-          return budget[b] - budget[a] || tie[a] - tie[b];
-        });
-        for (const e of order) {
-          if (have >= need) break;
-          if (!cov && (this.des[e].has(d + 1) || this.run(e, d) > mc || budget[e] < h / 2)) continue;
-          this.set(e, d, v); budget[e] -= h; have++;
-        }
+      let [L, Ea, Ta] = this.groups(d);
+      const cand = () => range(this.E).filter(e => !this.dir[e] && !this.lock[e][d] && !this.must[e][d] && this.soft[e][d] === null && !this.k[e][d])
+        .sort((a, b) => budget[b] - budget[a] || tie[a] - tie[b]);
+      for (const e of cand()) {
+        if (L >= this.need[d].long) break;
+        if (!cov && (!ok(e, d) || budget[e] < this.H[1] / 2)) continue;
+        this.k[e][d] = 1; budget[e] -= this.H[1]; L++;
+      }
+      for (const e of cand()) {
+        if (Ea + Ta >= this.need[d].short) break;
+        const v = Ea <= Ta ? 2 : 3;
+        if (!cov && (!ok(e, d) || budget[e] < this.H[v] / 2)) continue;
+        this.k[e][d] = v; budget[e] -= this.H[v]; v === 2 ? Ea++ : Ta++;
       }
     }
-    for (const e of range(this.E).filter(e => this.dir[e])) {
-      for (let d = 0; d < this.D && budget[e] > this.hS / 2; d++) {
-        if (this.fx[e][d] || this.works(e, d) || this.des[e].has(d + 1) || this.run(e, d) > mc) continue;
-        this.set(e, d, this.allowed[e].at(-1)); budget[e] -= this.hours(e, d);
-      }
+    for (const e of range(this.E).filter(e => this.dir[e])) for (let d = 0; d < this.D; d++) {
+      if (budget[e] < this.own[e] / 2) break;
+      if (this.lock[e][d] || this.soft[e][d] !== null || this.k[e][d] || !ok(e, d)) continue;
+      this.k[e][d] = 4; budget[e] -= this.own[e];
     }
   }
   perturb(r, flips) {
-    const free = [];
-    for (let e = 0; e < this.E; e++) for (let d = 0; d < this.D; d++) if (!this.fx[e][d]) free.push([e, d]);
-    for (const [e, d] of shuffle(free, r).slice(0, flips)) { const o = this.mand[e][d] ? this.allowed[e] : [0, ...this.allowed[e]]; this.set(e, d, o[Math.floor(r() * o.length)]); }
+    const cells = [];
+    for (let e = 0; e < this.E; e++) for (let d = 0; d < this.D; d++) if (!this.lock[e][d]) cells.push([e, d]);
+    for (const [e, d] of shuffle(cells, r).slice(0, flips)) {
+      const o = this.allowed[e].filter(v => (v || !this.must[e][d]) && this.can(e, d, v));
+      this.k[e][d] = o[Math.floor(r() * o.length)];
+    }
   }
   optimize(r, maxPasses = 40) {
-    const eps = 1e-9;
+    const eps = 1e-9, k = this.k;
     for (let pass = 0; pass < maxPasses; pass++) {
       let improved = false;
       const eo = shuffle(range(this.E), r), dO = shuffle(range(this.D), r);
       for (const e of eo) for (const d of dO) {
-        if (this.fx[e][d]) continue;
-        const cur = this.k[e][d]; let best = -1, bestCost = this.empCost(e) + this.dayCost(d) - eps;
-        for (const v of [0, ...this.allowed[e]]) {
-          if (v === cur || (v === 0 && this.mand[e][d])) continue;
-          this.set(e, d, v);
+        if (this.lock[e][d]) continue;
+        const cur = k[e][d];
+        let best = -1, bestCost = this.empCost(e) + this.dayCost(d) - eps;
+        for (const v of this.allowed[e]) {
+          if (v === cur || (v === 0 && this.must[e][d]) || !this.can(e, d, v)) continue;
+          k[e][d] = v;
           const c = this.empCost(e) + this.dayCost(d);
           if (c < bestCost) { bestCost = c; best = v; }
         }
-        this.set(e, d, best >= 0 ? best : cur);
+        k[e][d] = best >= 0 ? best : cur;
         if (best >= 0) improved = true;
       }
       for (const d of dO) for (const a of eo) {
-        if (this.fx[a][d] || this.mand[a][d] || !this.works(a, d)) continue;
-        const v = this.k[a][d];
+        const v = k[a][d];
+        if (this.lock[a][d] || this.must[a][d] || !v) continue;
         for (const b of eo) {
-          if (b === a || this.fx[b][d] || this.works(b, d) || !this.allowed[b].includes(v)) continue;
+          if (b === a || this.lock[b][d] || k[b][d] || !this.can(b, d, v)) continue;
           const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
-          this.set(a, d, 0); this.set(b, d, v);
+          k[a][d] = 0; k[b][d] = v;
           if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
-          this.set(b, d, 0); this.set(a, d, v);
+          k[b][d] = 0; k[a][d] = v;
         }
       }
       for (const d of dO) for (const a of eo) {
-        if (this.fx[a][d] || this.k[a][d] !== 1 || !this.allowed[a].includes(2)) continue;
+        const va = k[a][d];
+        if (this.lock[a][d] || !va) continue;
         for (const b of eo) {
-          if (this.fx[b][d] || this.k[b][d] !== 2 || !this.allowed[b].includes(1)) continue;
+          const vb = k[b][d];
+          if (b === a || this.lock[b][d] || !vb || vb === va || !this.can(a, d, vb) || !this.can(b, d, va)) continue;
           const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
-          this.set(a, d, 2); this.set(b, d, 1);
+          k[a][d] = vb; k[b][d] = va;
           if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
-          this.set(a, d, 1); this.set(b, d, 2);
+          k[a][d] = va; k[b][d] = vb;
         }
       }
       for (const e of eo) for (const d1 of dO) {
-        if (this.fx[e][d1] || this.mand[e][d1] || !this.works(e, d1)) continue;
-        const v = this.k[e][d1];
+        const v = k[e][d1];
+        if (this.lock[e][d1] || this.must[e][d1] || !v) continue;
         for (const d2 of dO) {
-          if (d2 === d1 || this.fx[e][d2] || this.works(e, d2)) continue;
+          if (d2 === d1 || this.lock[e][d2] || k[e][d2] || !this.can(e, d2, v)) continue;
           const before = this.empCost(e) + this.dayCost(d1) + this.dayCost(d2);
-          this.set(e, d1, 0); this.set(e, d2, v);
+          k[e][d1] = 0; k[e][d2] = v;
           if (this.empCost(e) + this.dayCost(d1) + this.dayCost(d2) < before - eps) { improved = true; break; }
-          this.set(e, d2, 0); this.set(e, d1, v);
+          k[e][d2] = 0; k[e][d1] = v;
         }
       }
       if (!improved) break;
     }
   }
   toCandidate(title, id) {
-    const ctx = this.ctx, D = this.D, E = this.E, mc = ctx.maxCons, cap = ctx.maxHours, nL = ctx.needLong, nS = ctx.needShort;
-    const kind = range(E).map(() => Array(D).fill(null)), earlyCount = Array(E).fill(0);
-    for (let d = 0; d < D; d++) {
-      const shorts = []; let fixedE = 0, fixedT = 0;
-      for (let e = 0; e < E; e++) {
-        if (!this.works(e, d)) continue;
-        const lc = this.lc[e][d];
-        if (lc) { kind[e][d] = lc.kind || 'early'; if (lc.kind === 'early') fixedE++; if (lc.kind === 'late') fixedT++; }
-        else if (this.k[e][d] === 1) kind[e][d] = 'long';
-        else if (this.own[e] != null) kind[e][d] = 'own';
-        else shorts.push(e);
-      }
-      shorts.sort((a, b) => earlyCount[a] - earlyCount[b] || (a + d) % E - (b + d) % E);
-      let needEarly = Math.ceil((shorts.length + fixedE + fixedT) / 2) - fixedE;
-      for (const e of shorts) { if (needEarly > 0) { kind[e][d] = 'early'; earlyCount[e]++; needEarly--; } else kind[e][d] = 'late'; }
-    }
-    const { norms } = computeNorms(ctx);
-    const grid = {}, msgs = { short: [], over: [], cap: [], des: [], hours: [], cons: [], single: [], triple: [] };
-    let pen = 0;
-    ctx.employees.forEach((emp, e) => {
-      const row = {}, desDays = [], singleDays = [];
-      let tot = 0, rs = 0, rl = 0, free = false, offRun = 0, maxOff = 0;
+    const ctx = this.ctx, D = this.D, grid = {}, fixed = {}, changes = [], viol = [];
+    ctx.people.forEach((p, e) => {
+      const row = {};
+      let tot = 0, run = 0, runStart = 0, off = -1, offStart = 0;
       for (let d = 0; d <= D; d++) {
-        const wk = d < D && this.works(e, d);
+        const v = d < D ? this.k[e][d] : 0;
         if (d < D) {
-          const lc = this.lc[e][d], kd = kind[e][d];
-          const status = lc ? lc.status : wk ? (this.mand[e][d] ? 'mandatory' : 'work') : this.why[e][d] || (this.des[e].has(d + 1) ? 'desiredOff' : 'off');
-          const hours = lc ? (wk ? lc.hours : 0) : wk ? kindHours(ctx, kd, emp) : 0;
-          row[d + 1] = { status, kind: wk ? kd : null, hours, locked: !!lc, dirMin: this.cnt[e][d], counts: this.counts(e, d) };
-          if (wk) {
-            tot += hours; offRun = 0;
-            if (rl === 0) rs = d + 1;
-            rl++;
-            if (!this.fx[e][d] && !this.mand[e][d]) free = true;
-            if (this.des[e].has(d + 1)) { pen += W0.des; desDays.push(d + 1); }
-          } else if (++offRun > maxOff) maxOff = offRun;
+          const mk = this.mk[e][d], code = v ? CODE[v] : this.vac[e][d] ? 'vacation' : 'off', hours = v ? this.hrs(e, v) : 0;
+          const markChanged = this.markDiff(e, d);
+          const dirUsed = this.dir[e] && v >= 1 && v <= 3 && !['long', 'early', 'late'].includes(mk);
+          const changed = markChanged || dirUsed;
+          tot += hours;
+          row[d + 1] = { code, hours, mark: mk, changed, counts: v >= 1 && v <= 3 };
+          if (changed) {
+            (fixed[p.id] ||= {})[d + 1] = v;
+            changes.push(markChanged ? { t: 'chg', id: p.id, day: d + 1, from: mk, to: code } : { t: 'dir', id: p.id, day: d + 1, to: code });
+          }
         }
-        if (!wk && rl > 0) {
-          if (free && rl > mc) { pen += (rl - mc) * W0.cons; msgs.cons.push(`${emp.name}: ${rl} ${plural(rl, 'смена', 'смены', 'смен')} подряд с ${rs} числа (лимит ${mc})`); }
-          if (free && rl === 1 && rs > 1 && d < D) { pen += W0.single; singleDays.push(rs); }
-          rl = 0; free = false;
+        if (v) {
+          if (run === 0) { runStart = d; if (off >= 0 && off < this.Y[e]) viol.push({ t: 'gap', id: p.id, day: offStart + 1, len: off, need: this.Y[e] }); }
+          run++;
+        } else {
+          if (run > 0) {
+            if (run > this.W[e]) viol.push({ t: 'cons', id: p.id, day: runStart + 1, len: run, max: this.W[e] });
+            run = 0; off = 0; offStart = d;
+          }
+          if (off >= 0) off++;
         }
       }
-      if (emp.tripleOff && maxOff < 3) { pen += W0.triple; msgs.triple.push(`${emp.name}: нет трёх выходных подряд`); }
-      grid[emp.id] = row;
-      if (desDays.length) msgs.des.push(`${emp.name}: ${plural(desDays.length, 'смена', 'смены', 'смен')} в желаемый выходной ${desDays.join(', ')} числа`);
-      if (singleDays.length) msgs.single.push(`${emp.name}: ${plural(singleDays.length, 'одиночная смена', 'одиночные смены', 'одиночных смен')} ${singleDays.join(', ')} числа (не по схеме 2/1, 3/1)`);
-      if (tot > cap + 0.01) { pen += Math.round((tot - cap) * W0.cap); msgs.cap.push(`${emp.name}: ${fmtH(tot)} ч — больше лимита ${cap} ч`); }
-      if (emp.target != null && Math.abs(tot - norms[emp.id]) >= 0.5) {
-        pen += Math.round(Math.abs(tot - norms[emp.id]) * W0.hour);
-        msgs.hours.push(`${emp.name}: ${signed(tot - norms[emp.id])}ч к норме ${fmtH(norms[emp.id])} ч`);
-      }
+      grid[p.id] = row;
+      if (tot > ctx.maxHours + 0.01) viol.push({ t: 'cap', id: p.id, hours: tot });
     });
     for (let d = 0; d < D; d++) {
-      const [L, Sh] = this.groups(d);
-      const dir = range(E).some(e => this.dir[e] && this.works(e, d) && !this.cnt[e][d]) ? ' (директор на смене, его можно засчитать)' : '';
-      if (L < nL) { pen += (nL - L) * W0.short; msgs.short.push(`${d + 1} числа: длинных смен ${L} из ${nL}${dir}`); }
-      if (Sh < nS) { pen += (nS - Sh) * W0.short; msgs.short.push(`${d + 1} числа: коротких смен ${Sh} из ${nS}${dir}`); }
-      if (L > nL) { pen += (L - nL) * W0.over; msgs.over.push(`${d + 1} числа: длинных смен ${L} вместо ${nL}`); }
-      if (Sh > nS) { pen += (Sh - nS) * W0.over; msgs.over.push(`${d + 1} числа: коротких смен ${Sh} вместо ${nS}`); }
+      const [L, Ea, Ta] = this.groups(d), n = this.need[d];
+      const dir = range(this.E).some(e => this.dir[e] && this.k[e][d] === 4);
+      if (L < n.long) viol.push({ t: 'short', day: d + 1, g: 'long', have: L, need: n.long, dir });
+      if (Ea + Ta < n.short) viol.push({ t: 'short', day: d + 1, g: 'short', have: Ea + Ta, need: n.short, dir });
     }
-    return { id, title, grid, penalty: pen, compromises: [...msgs.short, ...msgs.over, ...msgs.cap, ...msgs.triple, ...msgs.des, ...msgs.hours, ...msgs.cons, ...msgs.single] };
+    return { id, title, grid, fixed, changes, viol };
   }
 }
 
-const VARIANTS = [
-  { title: 'Вариант 1 · Желаемые выходные', w: { ...W0, des: 1000 }, cov: false },
-  { title: 'Вариант 2 · Равные часы и схема', w: { ...W0, hour: 30, hourAuto: 5, cap: 200, single: 50, cons: 120 }, cov: false },
-  { title: 'Вариант 3 · Закрытие смен', w: { ...W0, des: 60, short: 600, over: 60, single: 15 }, cov: true }
-];
-function sameGrid(a, b) {
-  return Object.keys(a.grid).every(id => Object.keys(a.grid[id]).every(d => {
-    const x = a.grid[id][d], y = b.grid[id]?.[d];
-    return isWork(x.status) === isWork(y?.status) && (!isWork(x.status) || groupOf(x.kind) === groupOf(y.kind));
-  }));
+function allowanceOf(c, ctx, withDays) {
+  const idx = Object.fromEntries(ctx.people.map((p, i) => [p.id, i])), allow = { days: {}, cap: {}, schema: {} }, add = (o, k, v) => { o[k] = (o[k] || 0) + v; };
+  for (const v of c.viol) {
+    if (v.t === 'short') { if (withDays) add(allow.days, v.day - 1, v.need - v.have); }
+    else if (v.t === 'cap') add(allow.cap, idx[v.id], v.hours - ctx.maxHours);
+    else add(allow.schema, idx[v.id], v.t === 'cons' ? v.len - v.max : v.need - v.len);
+  }
+  return allow;
 }
-function solve(ctx, w, cov, seed) {
-  const r = mulberry32(seed);
-  const b = new Board(ctx, null, false, w);
+const dirsExist = ctx => ctx.people.some(p => p.director);
+const severity = c => c.viol.reduce((s, v) => s + (v.t === 'short' ? (v.need - v.have) * 3 : 1), 0);
+const sameGrid = (a, b) => Object.keys(a.grid).every(id => Object.keys(a.grid[id]).every(d => a.grid[id][d].code === b.grid[id]?.[d]?.code));
+function solve(ctx, opt, seed, cov) {
+  const r = mulberry32(seed), b = new Board(ctx, null, opt);
   b.greedy(r, cov); b.optimize(r);
   let best = b, bestCost = b.total();
-  for (let k = 0; k < 6; k++) {
+  for (let i = 0; i < 6; i++) {
     const t = best.clone();
-    t.perturb(r, Math.max(4, ctx.employees.length)); t.optimize(r);
+    t.perturb(r, Math.max(4, b.E)); t.optimize(r);
     const c = t.total();
     if (c < bestCost - 1e-9) { best = t; bestCost = c; }
   }
   return best.toCandidate('', uid());
 }
 function generateSchedules(ctx) {
-  const ideal = solve(ctx, W0, false, 1);
-  if (ideal.penalty === 0) { ideal.title = 'Идеальный график'; return [ideal]; }
+  const base = solve(ctx, { mode: 'hard', w: W0 }, 1, false);
+  if (!base.viol.length) return [{ ...base, title: 'Все условия соблюдены' }];
+  // Компромиссы: закрыть смены, не создавая новых нарушений схемы и лимита часов.
+  const allow = allowanceOf(base, ctx, false), strict = { staff: true, hours: true, schema: true };
+  const fewest = cs => cs.sort((a, b) => severity(a) - severity(b) || a.changes.length - b.changes.length)[0];
+  const shortDays = c => new Set(c.viol.filter(v => v.t === 'short').map(v => v.day - 1));
+  const withDirector = c => improve(c, ctx, { mode: 'hard', w: { ...W0, dirUse: 100, change: 3 }, fixed: c.fixed, strict, allow, dirDays: shortDays(c) });
+  let v1 = fewest([7, 21].map(seed => solve(ctx, { mode: 'soft', w: { ...W0, mark: 150 }, strict, allow }, seed, true)));
+  if (shortDays(v1).size && dirsExist(ctx)) { const d = withDirector(v1); if (severity(d) < severity(v1)) v1 = d; }
+  const tries = [
+    { ...v1, id: uid(), desc: v1.changes.some(c => c.t === 'dir') ? 'Меняем чьи-то выходные или рабочие дни, директор встаёт в смену' : 'Меняем чьи-то выходные или рабочие дни' },
+    { ...withDirector(base), id: uid(), desc: 'Директор встаёт в смену там, где не хватает людей' },
+    { ...solve(ctx, { mode: 'hard', w: { ...W0, short: 1000 } }, 13, true), desc: 'Отметки не меняем, но у некоторых больше рабочих дней подряд' }
+  ];
   const res = [];
-  VARIANTS.forEach((v, i) => {
-    for (let a = 0; a < 4; a++) {
-      const c = solve(ctx, v.w, v.cov, i * 100 + a + 7);
-      if (res.some(x => sameGrid(x, c))) continue;
-      c.title = v.title; res.push(c); break;
-    }
-  });
-  return res.length ? res : [ideal];
+  for (const c of tries) if (severity(c) < severity(base) && ![...res, base].some(x => sameGrid(x, c))) res.push(c);
+  res.forEach((c, i) => { c.title = `Вариант ${i + 1}`; });
+  base.title = 'Без изменений'; base.desc = 'Все отметки как в календарях';
+  return [...res, base];
 }
-function rebalanceSchedule(cand, ctx, edit) {
-  const src = { ...cand, grid: structuredClone(cand.grid) };
-  if (edit) {
-    const on = isWork(edit.status);
-    (src.grid[edit.id] ||= {})[edit.day] = { status: edit.status, kind: on ? edit.kind : null, hours: on ? edit.hours : 0, locked: true, dirMin: !!edit.dirMin && on };
+function rebalanceSchedule(cand, ctx, strict) {
+  return improve(cand, ctx, { mode: 'hard', w: { ...W0, change: 3 }, fixed: cand.fixed, strict, allow: allowanceOf(cand, ctx, true) });
+}
+// Подстройка от готового графика: как можно меньше перестановок (вес change).
+function improve(cand, ctx, opt) {
+  const r = mulberry32(42), b = new Board(ctx, cand, { ...opt, keep: true });
+  b.base = b.k.map(row => row.slice());
+  b.optimize(r);
+  let best = b, bestCost = b.total();
+  for (let i = 0; i < 2; i++) {
+    const t = best.clone();
+    t.perturb(r, 4); t.optimize(r);
+    const c = t.total();
+    if (c < bestCost - 1e-9) { best = t; bestCost = c; }
   }
-  const b = new Board(ctx, src, true, { ...W0, change: 3 });
-  b.base = b.k.map(r => r.slice());
-  b.optimize(mulberry32(42));
-  return b.toCandidate(cand.title, cand.id);
+  return best.toCandidate(cand.title, cand.id);
 }
 
 /* ---------- Состояние ---------- */
-const S = { year: 2026, month: 10, maxCons: 3, maxHours: 240, needLong: 3, needShort: 4,
-  shifts: defaultShifts(), employees: samples(),
-  cands: [], sel: 0, gctx: null, tab: 'setup', sheet: null, flash: new Set(), compOpen: true, img: null, delConfirm: null };
-const KEY = 'shift-planner-setup-v3', SETUP_KEYS = ['year', 'month', 'maxCons', 'maxHours', 'needLong', 'needShort', 'shifts', 'employees'];
+const S = { shifts: { long: { start: '09:00', end: '22:00' }, early: { start: '12:00', end: '20:00' }, late: { start: '13:00', end: '21:00' } },
+  needLong: 3, needShort: 4, workDays: 3, offDays: 1, maxHours: 240, dayNeed: {}, strict: { hours: true, staff: true, schema: true },
+  cands: [], sel: 0, gctx: null, ver: 0, tab: 'setup', sheet: null, flash: new Set(), img: null, warn: null };
+Object.assign(S, defaults());
+const KEY = 'shift-planner-v5';
+const SAVE_KEYS = ['year', 'month', 'shifts', 'needLong', 'needShort', 'workDays', 'offDays', 'maxHours', 'staff', 'directors', 'marks', 'dayNeed', 'strict'];
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-  if (saved && Array.isArray(saved.employees)) for (const k of SETUP_KEYS) if (saved[k] !== undefined) S[k] = saved[k];
-  S.employees = S.employees.map(normEmp);
+  if (saved && Array.isArray(saved.staff)) for (const k of SAVE_KEYS) if (saved[k] !== undefined) S[k] = saved[k];
 } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(SETUP_KEYS.map(k => [k, S[k]])))); } catch (e) {} }
-const makeCtx = () => structuredClone({ employees: S.employees, year: S.year, month: S.month, maxCons: S.maxCons, maxHours: S.maxHours, needLong: S.needLong, needShort: S.needShort, shifts: S.shifts });
-const cur = () => S.cands[S.sel] || null;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(SAVE_KEYS.map(k => [k, S[k]])))); } catch (e) {} }
+const ym = () => ymKey(S.year, S.month);
+const monthMarks = () => (S.marks[ym()] ||= {});
+const monthNeed = () => (S.dayNeed[ym()] ||= {});
+const people = () => [...S.staff.map(p => ({ ...p, director: false, workDays: S.workDays, offDays: S.offDays })), ...S.directors.map(p => ({ ...p, director: true }))];
+const setupKey = () => JSON.stringify([S.year, S.month, S.shifts, S.needLong, S.needShort, S.workDays, S.offDays, S.maxHours,
+  S.staff.map(p => p.id), S.directors.map(p => [p.id, p.start, p.end, p.workDays, p.offDays]), monthMarks(), monthNeed()]);
+const makeCtx = () => structuredClone({ key: setupKey(), year: S.year, month: S.month, shifts: S.shifts, needLong: S.needLong, needShort: S.needShort,
+  maxHours: S.maxHours, people: people(), marks: monthMarks(), dayNeed: monthNeed() });
+const findPerson = id => S.staff.find(p => p.id === id) || S.directors.find(p => p.id === id);
+const nameOf = id => findPerson(id)?.name ?? S.gctx?.people.find(p => p.id === id)?.name ?? '';
 const $ = s => document.querySelector(s);
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
+function cur() {
+  const c = S.cands[S.sel];
+  if (c && c.ver !== S.ver) S.cands[S.sel] = { ...rebalanceSchedule(c, S.gctx, S.strict), ver: S.ver };
+  return S.cands[S.sel] || null;
+}
 function toast(text) {
   const t = $('#toast'); t.textContent = text; t.hidden = false;
   clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
 }
-function generate() {
-  S.gctx = makeCtx();
-  S.cands = generateSchedules(S.gctx); S.sel = 0; S.tab = 'grid';
-  render(); window.scrollTo(0, 0);
+function openGrid(force) {
+  S.tab = 'grid'; S.warn = null; renderTabs();
+  if (force || !S.gctx || S.gctx.key !== setupKey()) {
+    $('#grid').innerHTML = '<div class="panel empty">Составляю график…</div>';
+    setTimeout(() => {
+      S.gctx = makeCtx();
+      S.cands = generateSchedules(S.gctx).map(c => ({ ...c, ver: S.ver }));
+      S.sel = 0; renderGrid(); window.scrollTo(0, 0);
+    }, 30);
+  } else renderGrid();
 }
-function applyChange(fn) {
-  const before = cur();
-  fn();
-  const after = cur();
+// Ручная правка в графике: меняет отметку или потребность дня и подстраивает остальное с учётом галочек.
+function gridEdit(mutate, cell) {
+  const snap = structuredClone({ marks: monthMarks(), dayNeed: monthNeed(), cands: S.cands, sel: S.sel, gctx: S.gctx, ver: S.ver });
+  if (cell) for (const c of S.cands) delete c.fixed?.[cell.id]?.[cell.day];
+  const before = structuredClone(S.cands[S.sel]);
+  mutate();
+  S.gctx.marks = structuredClone(monthMarks()); S.gctx.dayNeed = structuredClone(monthNeed()); S.gctx.key = setupKey();
+  S.ver++;
+  const after = { ...rebalanceSchedule(before, S.gctx, S.strict), ver: S.ver };
+  S.cands[S.sel] = after;
+  const cats = [...(S.strict.staff ? ['short'] : []), ...(S.strict.hours ? ['cap'] : []), ...(S.strict.schema ? ['cons', 'gap'] : [])];
+  const same = (a, b) => a.t === b.t && a.id === b.id && a.day === b.day && a.g === b.g;
+  const fresh = after.viol.filter(v => cats.includes(v.t) && !snap.cands[snap.sel].viol.some(b => same(b, v)));
+  S.warn = fresh.length ? { snap, items: fresh } : null;
   S.flash = new Set();
   for (const id in after.grid) for (const d in after.grid[id]) {
-    const a = after.grid[id][d], b = before.grid[id]?.[d];
-    if (!b || a.status !== b.status || a.kind !== b.kind || a.hours !== b.hours || a.counts !== b.counts) S.flash.add(id + ':' + d);
+    const a = after.grid[id][d], b = snap.cands[snap.sel].grid[id]?.[d];
+    if (!b || a.code !== b.code || a.counts !== b.counts) S.flash.add(id + ':' + d);
   }
-  renderGrid(); S.flash = new Set();
+  save(); renderGrid(); S.flash = new Set();
   if (S.sheet) renderSheet();
 }
+function undoEdit() {
+  const s = S.warn.snap;
+  S.marks[ym()] = s.marks; S.dayNeed[ym()] = s.dayNeed; S.cands = s.cands; S.sel = s.sel; S.gctx = s.gctx; S.ver = s.ver + 1;
+  S.cands.forEach(c => { c.ver = S.ver; });
+  S.warn = null; save(); renderGrid(); toast('Правка отменена');
+}
+function setMark(id, day, code) {
+  const m = monthMarks();
+  if (code) (m[id] ||= {})[day] = code;
+  else if (m[id]) { delete m[id][day]; if (!Object.keys(m[id]).length) delete m[id]; }
+}
 
-/* ---------- Экран настройки ---------- */
+/* ---------- Настройка ---------- */
 const stepper = (act, label, minus = true, plus = true) =>
   `<span class="stepper"><button data-act="${act}" data-v="-1" aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label}</output><button data-act="${act}" data-v="1" aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
-const empRules = e => [
-  e.weekWork.length ? `Раб: ${e.weekWork.map(i => WD[i]).join(' ')}` : '', e.weekOff.length ? `Вых: ${e.weekOff.map(i => WD[i]).join(' ')}` : '',
-  e.shift ? `${hm(e.shift.start)}–${hm(e.shift.end)}` : e.kinds.length === 1 ? (e.kinds[0] === 'long' ? `только ${kindLabel(S, 'long')}` : 'только короткие') : '',
-  e.tripleOff ? '3 вых. подряд' : ''].filter(Boolean).map(t => `<span class="chip" style="--c:var(--muted)">${t}</span>`).join('');
-const chip = (n, s) => n ? `<span class="chip" style="--c:${STATUS[s].color || '#7a3dcf'}">${STATUS[s].short} · ${n}</span>` : '';
-const timeInputs = k => `<span class="times"><input type="time" id="t-${k}-start" value="${S.shifts[k].start}" aria-label="${KINDS[k].title}: начало">–<input type="time" id="t-${k}-end" value="${S.shifts[k].end}" aria-label="${KINDS[k].title}: конец"></span>`;
-
-function capacityNote() {
-  const ctx = makeCtx(), D = daysIn(S.year, S.month), { total, perPerson } = computeNorms(ctx);
-  const staff = S.employees.filter(e => !e.director).length, perDay = S.needLong + S.needShort;
-  const maxShifts = Math.floor(D * S.maxCons / (S.maxCons + 1)), shiftsEach = staff ? perDay * D / staff : Infinity;
-  const lines = [`Нужно в месяц: ${perDay * D} смен, ≈ ${fmtH(Math.round(total))} ч. На ${staff} ${plural(staff, 'сотрудника', 'сотрудников', 'сотрудников')} (без директора) — в среднем ${fmtH(Math.round(perPerson))} ч и ${fmtH(Math.round(shiftsEach * 10) / 10)} ${plural(Math.round(shiftsEach), 'смена', 'смены', 'смен')} на человека.`];
-  let warn = false;
-  if (perPerson > S.maxHours) { warn = true; lines.push(`Не хватает людей: это больше лимита ${S.maxHours} ч. Нужно минимум ${Math.ceil(total / S.maxHours)} сотрудников.`); }
-  if (shiftsEach > maxShifts) { warn = true; lines.push(`При схеме до ${S.maxCons}/1 один человек успевает не больше ${maxShifts} смен в месяц — нужно минимум ${Math.ceil(perDay * D / maxShifts)} сотрудников.`); }
-  return `<p class="note ${warn ? 'warn-text' : ''}">${lines.join(' ')}</p>`;
+const schemaCtl = (wAct, oAct, W, Y) => `<span class="schema">${stepper(wAct, W, W > 1, W < 14)}<b>/</b>${stepper(oAct, Y, Y > 1, Y < 7)}</span>`;
+const TIMES = range(48).map(i => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
+const timeSelect = (id, value, label) => `<select id="${id}" aria-label="${label}">${(TIMES.includes(value) ? TIMES : [...TIMES, value].sort()).map(t => `<option ${t === value ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+const timeInputs = (idBase, s) => `<span class="times">${timeSelect(idBase + '-start', s.start, 'Начало')}–${timeSelect(idBase + '-end', s.end, 'Конец')}</span>`;
+function personSummary(p, director) {
+  const m = monthMarks()[p.id] || {}, cnt = { vacation: 0, off: 0, work: 0 };
+  for (const c of Object.values(m)) cnt[c === 'vacation' || c === 'off' ? c : 'work']++;
+  const parts = [];
+  if (director) parts.push(`${hm(p.start)}–${hm(p.end)}, ${p.workDays}/${p.offDays}`);
+  if (cnt.vacation) parts.push(`отпуск ${cnt.vacation} дн.`);
+  if (cnt.off) parts.push(`выходных ${cnt.off}`);
+  if (cnt.work) parts.push(`рабочих ${cnt.work}`);
+  return parts.join(' · ') || 'даты не отмечены';
 }
+const personBtn = (p, director) => `<button class="person" data-act="person" data-id="${p.id}"><span><b>${esc(p.name || 'Без имени')}</b><small>${esc(personSummary(p, director))}</small></span></button>`;
 
 function renderSetup() {
-  const ctx = makeCtx(), { norms } = computeNorms(ctx);
+  const total = S.needLong + S.needShort;
   $('#setup').innerHTML = `
-  <section class="panel"><h2>Период</h2>
-    <div class="row"><label for="month">Месяц</label><select id="month">${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.month ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
-    <div class="row"><span>Год</span>${stepper('year', S.year)}</div>
+  <section class="panel"><h2>Месяц</h2>
+    <div class="period"><select id="month" aria-label="Месяц">${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.month ? 'selected' : ''}>${m}</option>`).join('')}</select>${stepper('year', S.year)}</div>
   </section>
-  <section class="panel"><h2>Смены · ${S.needLong + S.needShort} чел. в день</h2>
-    <div class="row"><span>Длинная<br><small class="note">${fmtH(kindHours(ctx, 'long'))} ч</small></span>${timeInputs('long')}</div>
-    <div class="row"><span>Длинных в день</span>${stepper('need-long', S.needLong + ' чел.', S.needLong > 0, S.needLong < 30)}</div>
-    <div class="row"><span>Короткая, утро<br><small class="note">${fmtH(kindHours(ctx, 'early'))} ч</small></span>${timeInputs('early')}</div>
-    <div class="row"><span>Короткая, вечер<br><small class="note">${fmtH(kindHours(ctx, 'late'))} ч</small></span>${timeInputs('late')}</div>
-    <div class="row"><span>Коротких в день</span>${stepper('need-short', S.needShort + ' чел.', S.needShort > 0, S.needShort < 30)}</div>
-    <p class="note">Короткие смены делятся между утром и вечером поровну. Часы считаются по времени начала и конца.</p>
+  <section class="panel"><h2>Смены</h2>
+    <div class="row"><span>Полная смена</span>${timeInputs('t-long', S.shifts.long)}</div>
+    <div class="row"><span>Людей на полную смену</span>${stepper('need-long', S.needLong + ' чел.', S.needLong > 0, S.needLong < 30)}</div>
+    <div class="row"><span>Короткая смена — день</span>${timeInputs('t-early', S.shifts.early)}</div>
+    <div class="row"><span>Короткая смена — вечер</span>${timeInputs('t-late', S.shifts.late)}</div>
+    <div class="row"><span>Людей на короткие смены<br><small>день и вечер вместе</small></span>${stepper('need-short', S.needShort + ' чел.', S.needShort > 0, S.needShort < 30)}</div>
+    <p class="note">В смене ${total} ${plural(total, 'человек', 'человека', 'человек')}, директор — сверх этого. Другое количество на конкретный день можно задать в графике: нажмите на дату.</p>
   </section>
   <section class="panel"><h2>Правила</h2>
-    <div class="row"><span>Схема работы<br><small class="note">2/1 и 3/1 чередуются</small></span>${stepper('cons', `до ${S.maxCons}/1`, S.maxCons > 1, S.maxCons < 7)}</div>
-    <div class="row"><span>Не более часов в месяц</span>${stepper('cap', S.maxHours + ' ч', S.maxHours > 40, S.maxHours < 400)}</div>
-    <p class="note">После ${S.maxCons > 2 ? `2–${S.maxCons}` : S.maxCons} смен подряд — выходной. Одиночных смен (1/1) программа старается избегать.</p>
+    <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>${schemaCtl('work-days', 'off-days', S.workDays, S.offDays)}</div>
+    <div class="row"><span>Макс. часов в месяц</span><span class="num"><input type="number" id="max-hours" value="${S.maxHours}" min="1" max="744" inputmode="numeric" aria-label="Максимум часов в месяц"> ч</span></div>
+    <p class="note">Схема ${S.workDays}/${S.offDays}: не больше ${S.workDays} ${plural(S.workDays, 'рабочего дня', 'рабочих дней', 'рабочих дней')} подряд, потом минимум ${S.offDays} ${plural(S.offDays, 'выходной', 'выходных', 'выходных')}.</p>
   </section>
-  <section class="panel"><h2>Сотрудники · ${S.employees.length}</h2>
-    ${S.employees.map(e => `<div class="emp-row"><button class="emp" data-act="edit-emp" data-id="${e.id}">
-      <b>${esc(e.name || 'Без имени')}</b>
-      <span class="meta">Норма ${e.target == null ? `авто ≈ ${fmtH(norms[e.id])}` : fmtH(e.target)} ч/мес</span>
-      <span class="chips">${chip(e.vac.length, 'vacation')}${chip(e.des.length, 'desiredOff')}${chip(e.off.length, 'fixedOff')}${chip(e.man.length, 'mandatory')}${e.director ? '<span class="chip" style="--c:var(--accent)">Директор</span>' : ''}${empRules(e)}</span>
-    </button><button class="del ${S.delConfirm === e.id ? 'confirm' : ''}" data-act="quick-del" data-id="${e.id}" aria-label="Удалить ${esc(e.name)}">${S.delConfirm === e.id ? 'Удалить?' : '✕'}</button></div>`).join('') || '<p class="note">Добавьте хотя бы одного сотрудника.</p>'}
-    <form class="addform" id="add-form" autocomplete="off"><input type="text" id="new-name" placeholder="Имя нового сотрудника" aria-label="Имя нового сотрудника"><button class="btn" type="submit">Добавить</button></form>
-    ${capacityNote()}
-    <div class="btns"><button class="btn" data-act="samples">Загрузить список на октябрь</button></div>
-    <p class="note">Нажмите на карточку, чтобы изменить имя, норму и отметить даты. Кнопка ✕ удаляет сотрудника (нужно нажать дважды).</p>
+  <section class="panel"><h2>Сотрудники · ${S.staff.length}</h2>
+    <div class="people">${S.staff.map(p => personBtn(p, false)).join('')}</div>
+    <form class="addform" id="add-staff" autocomplete="off"><input type="text" id="new-staff" placeholder="Имя сотрудника" aria-label="Имя сотрудника"><button class="btn" type="submit">Добавить</button></form>
+    <h2 class="sub">Директор</h2>
+    <div class="people">${S.directors.map(p => personBtn(p, true)).join('')}</div>
+    <form class="addform" id="add-dir" autocomplete="off"><input type="text" id="new-dir" placeholder="Имя директора" aria-label="Имя директора"><button class="btn" type="submit">Добавить</button></form>
+    <p class="note">Нажмите на имя, чтобы отметить отпуск, выходные и рабочие дни.</p>
   </section>
-  <button class="btn primary" data-act="generate" ${S.employees.length ? '' : 'disabled'}>Сформировать график</button>`;
+  <button class="btn primary" data-act="generate" ${S.staff.length ? '' : 'disabled'}>Создать график</button>`;
 }
 
-/* ---------- Экран графика ---------- */
+/* ---------- График ---------- */
+const codeWord = (ctx, code, p) => code === 'off' ? 'выходной' : code === 'vacation' ? 'отпуск' : code === 'any' ? 'рабочий день' : `смена ${codeLabel(ctx, code, p)}`;
+function changeText(c, ctx) {
+  const p = ctx.people.find(x => x.id === c.id), when = `${c.day} ${MONTHS_GEN[ctx.month - 1]}`;
+  if (c.t === 'dir') return `${nameOf(c.id)} (директор), ${when}: встаёт в смену ${codeLabel(ctx, c.to, p)} вместо сотрудника`;
+  if (c.from === 'off') return p.director && c.to !== 'own' ? `${nameOf(c.id)} (директор), ${when}: встаёт в смену ${codeLabel(ctx, c.to, p)} вместо выходного`
+    : `${nameOf(c.id)}, ${when}: работает ${codeLabel(ctx, c.to, p)} вместо выходного`;
+  if (c.to === 'off') return `${nameOf(c.id)}, ${when}: выходной вместо рабочего дня`;
+  return `${nameOf(c.id)}, ${when}: ${codeWord(ctx, c.to, p)} вместо «${codeWord(ctx, c.from, p)}»`;
+}
+function violText(v, ctx) {
+  const mg = MONTHS_GEN[ctx.month - 1];
+  if (v.t === 'short') return `${v.day} ${mg}: на ${v.g === 'long' ? 'полной смене' : 'коротких сменах'} ${v.have} из ${v.need}${v.dir ? ' — можно поставить директора' : ''}`;
+  if (v.t === 'cap') return `${nameOf(v.id)}: ${fmtH(v.hours)} ч — больше ${ctx.maxHours} ч`;
+  if (v.t === 'cons') return `${nameOf(v.id)}: ${v.len} ${plural(v.len, 'рабочий день', 'рабочих дня', 'рабочих дней')} подряд с ${v.day} ${mg} (можно ${v.max})`;
+  return `${nameOf(v.id)}: только ${v.len} ${plural(v.len, 'выходной', 'выходных', 'выходных')} с ${v.day} ${mg} (нужно ${v.need})`;
+}
+
 function renderGrid() {
-  const el = $('#grid'), c = cur(), ctx = S.gctx;
-  if (!c) { el.innerHTML = `<div class="panel empty">Графика пока нет.<br>Настройте месяц и сотрудников и нажмите «Сформировать график».</div>`; return; }
+  if (S.tab !== 'grid') return;
+  const el = $('#grid'), ctx = S.gctx, c = ctx && cur();
+  if (!c) { el.innerHTML = '<div class="panel empty">Графика пока нет. Нажмите «Создать график» на вкладке «Настройка».</div>'; return; }
   const wrapOld = el.querySelector('.tablewrap'), scroll = wrapOld ? [wrapOld.scrollLeft, wrapOld.scrollTop] : null;
-  const D = daysIn(ctx.year, ctx.month), days = range(D).map(i => i + 1), locks = lockedCount(c), { norms } = computeNorms(ctx);
-  const stale = JSON.stringify(makeCtx()) !== JSON.stringify(ctx);
-  const cell = (emp, d) => {
-    const a = c.grid[emp.id]?.[d] || { status: 'off', hours: 0 }, on = isWork(a.status);
-    const sub = !on ? '' : a.dirMin ? 'мин' : a.status === 'mandatory' ? 'обяз' : fmtH(a.hours) + 'ч';
-    return `<td><button class="cell ${on ? 'on' : ''} ${a.locked ? 'locked' : ''} ${S.flash.has(emp.id + ':' + d) ? 'flash' : ''}" style="--c:${cellColor(a)}"
-      data-act="cell" data-id="${emp.id}" data-d="${d}" aria-label="${esc(emp.name)}, ${d} число: ${on ? kindTime(ctx, a.kind, emp) : STATUS[a.status].title}">
-      <b>${on ? kindLabel(ctx, a.kind, emp) : STATUS[a.status].short}</b>${on ? `<i>${sub}</i>` : ''}</button></td>`;
+  const D = daysIn(ctx.year, ctx.month), days = range(D).map(i => i + 1), dirs = ctx.people.filter(p => p.director);
+  const multi = S.cands.length > 1;
+  const cell = (p, d) => {
+    const a = c.grid[p.id]?.[d] || { code: 'off' }, on = isWorkCode(a.code);
+    const sub = !on ? '' : p.director && a.code !== 'own' ? 'дир.' : fmtH(a.hours) + 'ч';
+    return `<td><button class="cell ${on ? 'on' : ''} ${a.mark ? 'locked' : ''} ${a.changed ? 'changed' : ''} ${S.flash.has(p.id + ':' + d) ? 'flash' : ''}" style="--c:${COLORS[a.code]}"
+      data-act="cell" data-id="${p.id}" data-d="${d}" aria-label="${esc(nameOf(p.id))}, ${dateTitle(ctx, d)}: ${on ? codeTime(ctx, a.code, p) : codeWord(ctx, a.code)}${a.mark ? ', отмечено' : ''}">
+      <b>${on ? codeLabel(ctx, a.code, p) : a.code === 'vacation' ? 'Отп' : 'В'}</b>${on ? `<i>${sub}</i>` : ''}</button></td>`;
   };
   el.innerHTML = `
-  ${stale ? '<div class="banner"><span>Настройки изменились после составления графика.</span><button class="btn" data-act="generate">Сформировать заново</button></div>' : ''}
-  ${S.cands.length > 1 ? `<div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">Вариант ${i + 1}</button>`).join('')}</div>` : ''}
-  <section class="panel">
-    <div class="summary"><h1>${esc(c.title)}</h1><span class="pill ${c.penalty ? 'warn' : 'ok'}">Штраф: ${c.penalty}</span></div>
-    ${c.compromises.length ? `<details id="comp" ${S.compOpen ? 'open' : ''}><summary>Компромиссы (${c.compromises.length})</summary><ul>${c.compromises.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>`
-      : '<p class="note" style="color:var(--ok)">Все ограничения соблюдены.</p>'}
-    <div class="btns">
-      <button class="btn" data-act="image">В общий чат (Картинка)</button>
-      <button class="btn" data-act="person-new">+ Сотрудник</button>
-      <button class="btn" data-act="reset" ${locks ? '' : 'disabled'}>Сбросить ручные правки${locks ? ` (${locks})` : ''}</button>
-    </div>
+  <section class="panel status">
+    <div class="status-head">${multi ? '<h1>Все условия соблюсти не получилось</h1>' : c.viol.length ? '<h1>Есть нарушения</h1>' : '<h1 class="ok">Все условия соблюдены</h1>'}
+      <button class="btn" data-act="image">В общий чат (Картинка)</button></div>
+    ${multi ? `<p class="note">Выберите вариант. В вариантах можно поменять чей-то выходной или рабочий день; отпуск не меняется.</p>
+      <div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">${esc(x.title)}</button>`).join('')}</div>
+      <p><b>${esc(c.title)}:</b> ${esc(c.desc || '')}</p>` : ''}
+    ${c.changes.length ? `<h3>Что меняется</h3><ul>${c.changes.map(x => `<li>${esc(changeText(x, ctx))}</li>`).join('')}</ul>` : ''}
+    ${c.viol.length ? `<h3>Не соблюдено</h3><ul>${c.viol.map(x => `<li>${esc(violText(x, ctx))}</li>`).join('')}</ul>` : multi ? '<p class="note ok-text" style="color:var(--ok)">С этими изменениями все условия соблюдены.</p>' : ''}
   </section>
+  ${S.warn ? `<div class="banner"><b>Подстроить график, не нарушив отмеченные правила, не получилось:</b>
+    <ul>${S.warn.items.map(x => `<li>${esc(violText(x, ctx))}</li>`).join('')}</ul>
+    <div class="btns"><button class="btn" data-act="undo">Отменить правку</button><button class="btn" data-act="keep">Оставить</button></div></div>` : ''}
+  <div class="strict"><span>При ручной правке не нарушать:</span>
+    <label><input type="checkbox" id="st-hours" ${S.strict.hours ? 'checked' : ''}> макс. часов</label>
+    <label><input type="checkbox" id="st-staff" ${S.strict.staff ? 'checked' : ''}> людей в смене</label>
+    <label><input type="checkbox" id="st-schema" ${S.strict.schema ? 'checked' : ''}> рабочих дней подряд</label></div>
   <div class="tablewrap"><table class="sched">
-    <thead><tr><th class="corner">Сотрудник<br><span style="font-weight:500;color:var(--muted)">Факт / Норма ч.</span></th>
-      ${days.map(d => `<th class="${wdIndex(ctx.year, ctx.month, d) >= 5 ? 'we' : ''}"><b>${d}</b>${WD[wdIndex(ctx.year, ctx.month, d)]}</th>`).join('')}</tr></thead>
-    <tbody>${ctx.employees.map(emp => {
-      const f = worked(c, emp.id), n = norms[emp.id], cls = f > ctx.maxHours + 0.01 ? 'bad' : Math.abs(f - n) <= 8 ? 'ok' : 'warn';
-      return `<tr><th class="name"><button class="nm-btn" data-act="person" data-id="${emp.id}" aria-label="Изменить или удалить ${esc(emp.name)}"><span class="nm">${esc(emp.name)}</span></button>${emp.director ? '<span class="dir">дир.</span> ' : ''}<span class="fact ${cls}">${fmtH(f)} / ${fmtH(n)}</span></th>${days.map(d => cell(emp, d)).join('')}</tr>`;
+    <thead><tr><th class="corner">Сотрудник<br><span style="font-weight:500;color:var(--muted)">часы за месяц</span></th>
+      ${days.map(d => { const n = ctx.dayNeed[d], wd = wdIndex(ctx.year, ctx.month, d);
+        return `<th class="${wd >= 5 ? 'we' : ''}"><button class="day-btn" data-act="day-need" data-d="${d}" aria-label="${dateTitle(ctx, d)}: сколько людей нужно"><b>${d}</b>${WD[wd]}${n ? `<small>${n.long + n.short} чел.</small>` : ''}</button></th>`; }).join('')}</tr></thead>
+    <tbody>${ctx.people.map(p => {
+      const f = Object.values(c.grid[p.id] || {}).reduce((s, a) => s + a.hours, 0);
+      return `<tr><th class="name"><span class="nm">${esc(nameOf(p.id))}</span>${p.director ? '<span class="dir">дир.</span> ' : ''}<span class="hrs ${f > ctx.maxHours ? 'bad' : ''}">${fmtH(f)} ч</span></th>${days.map(d => cell(p, d)).join('')}</tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><th class="name">Итого на смене<br><span style="font-weight:500;color:var(--muted)">длинные · короткие</span></th>${days.map(d => {
-      const [L, Sh] = groupsOn(c, d), bad = L < ctx.needLong || Sh < ctx.needShort, over = L > ctx.needLong || Sh > ctx.needShort;
-      return `<td><span class="tot ${bad ? 'bad' : over ? 'over' : 'ok'}"><b>${L + Sh}${dirExtra(c, d) ? '<sup>+Д</sup>' : ''}</b><small>${L}·${Sh}</small></span></td>`;
+    <tfoot><tr><th class="name">На смене<br><span style="font-weight:500;color:var(--muted)">полная · короткие</span></th>${days.map(d => {
+      let L = 0, Sh = 0, extra = false;
+      for (const p of ctx.people) { const a = c.grid[p.id][d]; if (a.counts) a.code === 'long' ? L++ : Sh++; else if (a.code === 'own') extra = true; }
+      const n = needFor(ctx, d);
+      return `<td><span class="tot ${L < n.long || Sh < n.short ? 'bad' : 'ok'}"><b>${L + Sh}${extra ? '<sup>+Д</sup>' : ''}</b><small>${L}·${Sh}</small></span></td>`;
     }).join('')}</tr></tfoot>
   </table></div>
-  <div class="legend">${BASE_KINDS.map(k => `<span style="--c:${KINDS[k].color}">${kindTime(ctx, k)} — ${KINDS[k].title.toLowerCase()}, ${fmtH(kindHours(ctx, k))} ч</span>`).join('')}
-    ${ctx.employees.filter(e => e.shift).map(e => `<span style="--c:${KINDS.own.color}">${kindTime(ctx, 'own', e)} — ${esc(e.name)}</span>`).join('')}
-    ${['vacation', 'fixedOff', 'desiredOff', 'off'].map(s => `<span style="--c:${STATUS[s].color}">${STATUS[s].short} — ${STATUS[s].title}</span>`).join('')}
-    <span style="--c:var(--accent)">«обяз» — обязательная смена, «мин» и «+Д» — директор в минимуме / сверх минимума</span></div>
-  <p class="note">Нажмите на имя, чтобы переименовать или удалить сотрудника. Нажмите на ячейку, чтобы поменять смену или часы. Остальной график подстроится автоматически, изменённые ячейки подсветятся.</p>`;
+  <div class="legend">${['long', 'early', 'late'].map(k => `<span class="sw" style="--c:${COLORS[k]}">${codeLabel(ctx, k)} — ${SHIFT_NAMES[k].toLowerCase()}</span>`).join('')}
+    ${dirs.map(p => `<span class="sw" style="--c:${COLORS.own}">${codeLabel(ctx, 'own', p)} — ${esc(nameOf(p.id))}, директор</span>`).join('')}
+    <span class="sw" style="--c:${COLORS.off}">В — выходной</span><span class="sw" style="--c:${COLORS.vacation}">Отп — отпуск</span>
+    <span class="lk">отмечено в календаре</span>${multi ? '<span class="ch">изменено в этом варианте</span>' : ''}${dirs.length ? '<span>«+Д» — директор на работе сверх смены</span>' : ''}</div>
+  <p class="note">Нажмите на клетку, чтобы поменять смену, — график подстроится. Нажмите на дату, чтобы задать, сколько людей нужно в этот день.</p>`;
   const wrap = el.querySelector('.tablewrap');
   if (scroll) { wrap.scrollLeft = scroll[0]; wrap.scrollTop = scroll[1]; }
-  el.querySelector('#comp')?.addEventListener('toggle', e => { S.compOpen = e.target.open; });
 }
 
 /* ---------- Нижние панели ---------- */
@@ -671,148 +750,69 @@ function renderSheet() {
   box.hidden = !sh;
   if (!sh) return;
   const close = '<button class="btn" data-act="close">Готово</button>';
-  if (sh.type === 'emp') {
-    const e = S.employees.find(x => x.id === sh.id);
-    if (!e) { S.sheet = null; box.hidden = true; return; }
-    const D = daysIn(S.year, S.month), lead = wdIndex(S.year, S.month, 1), auto = computeNorms(makeCtx()).norms[e.id];
-    const wdOf = d => wdIndex(S.year, S.month, d);
-    const st = d => e.vac.includes(d) ? 'vacation' : e.off.includes(d) ? 'fixedOff' : e.des.includes(d) ? 'desiredOff' : e.man.includes(d) ? 'mandatory'
-      : e.weekOff.includes(wdOf(d)) ? 'w-fixedOff' : e.weekWork.includes(wdOf(d)) ? 'w-mandatory' : '';
-    const modes = [['vacation', 'Отпуск'], ['fixedOff', 'Выходной'], ['desiredOff', 'Желаемый'], ['mandatory', 'Смена']];
-    const kindsBox = e.shift ? '' : `<div class="row"><span>Какие смены может брать</span><span class="btns">
-      <label class="check"><input type="checkbox" id="emp-k-long" ${e.kinds.includes('long') ? 'checked' : ''}> ${kindLabel(S, 'long')}</label>
-      <label class="check"><input type="checkbox" id="emp-k-short" ${e.kinds.includes('short') ? 'checked' : ''}> ${kindLabel(S, 'early')} / ${kindLabel(S, 'late')}</label></span></div>`;
-    body.innerHTML = `<header><h3>Сотрудник</h3>${close}</header>
-      <input type="text" id="emp-name" value="${esc(e.name)}" placeholder="Имя" autocomplete="off">
-      <label class="switch" for="emp-dir"><span>Директор<br><span class="note">Не входит в число людей на смене. В графике его смену можно засчитать галочкой.</span></span><input type="checkbox" id="emp-dir" ${e.director ? 'checked' : ''}></label>
-      <label class="switch" for="emp-own"><span>Своя норма часов<br><span class="note">${e.target == null ? `Сейчас авто: ≈ ${fmtH(auto)} ч — нужные часы делятся поровну с учётом отпусков` : `Не больше лимита ${S.maxHours} ч`}</span></span><input type="checkbox" id="emp-own" ${e.target != null ? 'checked' : ''}></label>
-      ${e.target != null ? `<div class="row"><span>Норма в месяц</span>${stepper('emp-target', fmtH(e.target) + ' ч', e.target > 0, e.target < S.maxHours)}</div>` : ''}
-      <label class="switch" for="emp-shift"><span>Своё время смены<br><span class="note">Например, 10:00–19:00. Тогда сотрудник работает только в это время.</span></span><input type="checkbox" id="emp-shift" ${e.shift ? 'checked' : ''}></label>
-      ${e.shift ? `<div class="row"><span>Время смены · ${fmtH(kindHours(S, 'own', e))} ч</span><span class="times"><input type="time" id="own-start" value="${e.shift.start}" aria-label="Начало">–<input type="time" id="own-end" value="${e.shift.end}" aria-label="Конец"></span></div>` : ''}
-      ${kindsBox}
-      <div class="wk-label"><span>Дни недели</span><span class="note">Нажатие: всегда работает → всегда выходной → без правила</span></div>
-      <div class="week">${WD.map((w, i) => { const m = e.weekWork.includes(i) ? 'work' : e.weekOff.includes(i) ? 'off' : ''; return `<button data-act="wday" data-w="${i}" class="${m}" aria-label="${w}: ${m === 'work' ? 'всегда работает' : m === 'off' ? 'всегда выходной' : 'без правила'}">${w}<small>${m === 'work' ? 'раб' : m === 'off' ? 'вых' : '—'}</small></button>`; }).join('')}</div>
-      <label class="switch" for="emp-triple"><span>Раз в месяц 3 выходных подряд</span><input type="checkbox" id="emp-triple" ${e.tripleOff ? 'checked' : ''}></label>
-      <div><div class="seg" style="display:flex">${modes.map(([m, t]) => `<button data-act="mode" data-m="${m}" aria-pressed="${sh.mode === m}">${t}</button>`).join('')}</div></div>
-      <div class="cal">${WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(lead)}
-        ${range(D).map(i => { const d = i + 1, s = st(d), base = s.replace('w-', ''); return `<button data-act="day" data-d="${d}" class="${wdOf(d) >= 5 ? 'we' : ''} ${s.startsWith('w-') ? 'wk' : ''}" ${s ? `data-s="${base}" style="--c:${STATUS[base].color || '#7a3dcf'}"` : ''}>${d}</button>`; }).join('')}</div>
-      <p class="note">${MONTHS[S.month - 1]} ${S.year}. Выберите режим и нажимайте на даты, повторное нажатие снимает отметку. «Выходной» — обязательный, «Желаемый» — по возможности. Бледные дни заданы правилом дней недели.</p>
-      <div class="btns"><button class="btn" data-act="clear-days">Очистить отметки</button>
-        <button class="btn danger" data-act="del-emp">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить сотрудника'}</button></div>`;
-    $('#emp-name').addEventListener('input', ev => { e.name = ev.target.value; save(); renderSetup(); });
-    $('#emp-dir').addEventListener('change', ev => { e.director = ev.target.checked; save(); renderSetup(); renderSheet(); });
-    $('#emp-own').addEventListener('change', ev => { e.target = ev.target.checked ? Math.min(S.maxHours, Math.round(auto)) : null; save(); renderSetup(); renderSheet(); });
-    $('#emp-shift').addEventListener('change', ev => { e.shift = ev.target.checked ? { start: '10:00', end: '19:00' } : null; save(); renderSetup(); renderSheet(); });
-    $('#emp-triple').addEventListener('change', ev => { e.tripleOff = ev.target.checked; save(); renderSetup(); });
-    for (const [id, k] of [['emp-k-long', 'long'], ['emp-k-short', 'short']]) $('#' + id)?.addEventListener('change', ev => {
-      e.kinds = ev.target.checked ? [...new Set([...e.kinds, k])] : e.kinds.filter(x => x !== k);
-      if (!e.kinds.length) e.kinds = [k === 'long' ? 'short' : 'long'];
-      save(); renderSetup(); renderSheet();
-    });
-    for (const [id, part] of [['own-start', 'start'], ['own-end', 'end']]) $('#' + id)?.addEventListener('change', ev => { if (ev.target.value) { e.shift[part] = ev.target.value; save(); renderSetup(); renderSheet(); } });
-  } else if (sh.type === 'person') {
-    const e = S.gctx.employees.find(x => x.id === sh.id);
-    if (!e) { S.sheet = null; box.hidden = true; return; }
-    body.innerHTML = `<header><h3>Сотрудник в графике</h3>${close}</header>
-      <input type="text" id="person-name" value="${esc(e.name)}" placeholder="Имя" autocomplete="off">
-      <div class="kv"><span>Норма</span><b>${fmtH(computeNorms(S.gctx).norms[e.id])} ч${e.target == null ? ' (авто)' : ''}</b></div>
-      <p class="note">Норму и даты можно поменять на вкладке «Настройка». После удаления график пересчитается, чтобы закрыть освободившиеся смены.</p>
-      <button class="btn danger" data-act="person-del">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить из графика'}</button>`;
-    $('#person-name').addEventListener('input', ev => renamePerson(e.id, ev.target.value));
-  } else if (sh.type === 'person-new') {
-    body.innerHTML = `<header><h3>Новый сотрудник</h3>${close}</header>
-      <form class="addform" id="person-form" autocomplete="off"><input type="text" id="person-new-name" placeholder="Имя"><button class="btn primary" type="submit" style="padding:9px 14px;font-size:15px">Добавить</button></form>
-      <p class="note">Норма считается автоматически. График подстроится: новому сотруднику назначатся смены, у остальных часть смен снимется.</p>`;
-    $('#person-new-name').focus();
+  if (sh.type === 'person') {
+    const p = findPerson(sh.id), director = S.directors.includes(p);
+    if (!p) { S.sheet = null; box.hidden = true; return; }
+    const ctx = { shifts: S.shifts }, m = monthMarks()[p.id] || {};
+    const D = daysIn(S.year, S.month), lead = wdIndex(S.year, S.month, 1);
+    const workColor = director ? COLORS.own : COLORS[sh.kind];
+    const modes = [['vacation', 'Отпуск', COLORS.vacation], ['off', 'Выходной', COLORS.off], ['work', 'Рабочий день', workColor]];
+    const kinds = [['long', 'Полная'], ['early', 'День'], ['late', 'Вечер'], ['any', 'Любая']];
+    const sub = c => c === 'vacation' ? 'отп' : c === 'off' ? 'вых' : c === 'any' ? 'любая' : codeLabel(ctx, c, p);
+    body.innerHTML = `<header><h3>${director ? 'Директор' : 'Сотрудник'}</h3>${close}</header>
+      <input type="text" id="p-name" value="${esc(p.name)}" placeholder="Имя" aria-label="Имя" autocomplete="off">
+      ${director ? `<div class="row"><span>Время работы</span>${timeInputs('d-time', p)}</div>
+        <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>${schemaCtl('d-work', 'd-off', p.workDays, p.offDays)}</div>
+        <p class="note">Директор не входит в число людей на смене. Если людей не хватает, его можно поставить в смену прямо в графике.</p>` : ''}
+      <div class="box"><h4>Календарь — ${MONTHS[S.month - 1]} ${S.year}</h4>
+        <div class="modes">${modes.map(([v, t, col]) => `<button data-act="mode" data-m="${v}" style="--c:${col}" aria-pressed="${sh.mode === v}">${t}</button>`).join('')}</div>
+        ${sh.mode === 'work' && !director ? `<div class="kinds">${kinds.map(([k, t]) => `<button data-act="kind" data-k="${k}" style="--c:${COLORS[k]}" aria-pressed="${sh.kind === k}">${t}<br>${k === 'any' ? 'решит график' : codeLabel(ctx, k)}</button>`).join('')}</div>` : ''}
+        <div class="cal">${WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(lead)}
+          ${range(D).map(i => { const d = i + 1, c = m[d], we = wdIndex(S.year, S.month, d) >= 5;
+            return `<button data-act="day" data-d="${d}" class="${we ? 'we' : ''}" ${c ? `data-s="${c}" style="--c:${COLORS[c]}"` : ''} aria-label="${d}: ${c ? sub(c) : 'не отмечено'}">${d}${c ? `<small>${sub(c)}</small>` : ''}</button>`; }).join('')}</div>
+        <p class="note">Выберите, что отмечать, и нажимайте на даты. Повторное нажатие снимает отметку. Неотмеченные дни заполнит программа.</p>
+      </div>
+      <button class="btn danger" data-act="del-person">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : director ? 'Удалить директора' : 'Удалить сотрудника'}</button>`;
+    $('#p-name').addEventListener('input', ev => { p.name = ev.target.value; save(); renderSetup(); });
   } else if (sh.type === 'cell') {
-    const c = cur(), ctx = S.gctx, emp = ctx.employees.find(x => x.id === sh.id), a = c.grid[sh.id][sh.day];
-    const on = isWork(a.status), shown = on ? a.kind : a.status === 'desiredOff' ? 'off' : a.status;
-    const [L, Sh] = groupsOn(c, sh.day), f = worked(c, emp.id);
-    const opts = [...[...BASE_KINDS, ...(emp.shift ? ['own'] : [])].map(k => [k, kindTime(ctx, k, emp), KINDS[k].title, KINDS[k].color]), ['off', 'Выходной', '', STATUS.off.color], ['vacation', 'Отпуск', '', STATUS.vacation.color]];
-    body.innerHTML = `<header><h3>${esc(emp.name)}, ${sh.day} ${MONTHS_GEN[ctx.month - 1]}</h3>${close}</header>
-      <div class="status-grid">${opts.map(([v, t, sub, col]) => `<button data-act="set-status" data-s="${v}" style="--c:${col}" aria-pressed="${shown === v}">${t}${sub ? `<br><small>${sub}</small>` : ''}</button>`).join('')}</div>
-      <div class="row"><span>Часы за эту смену</span>${stepper('cell-hours', on ? fmtH(a.hours) + ' ч' : '—', on && a.hours > 0.5, on && a.hours < 24)}</div>
-      ${emp.director ? `<label class="switch" for="dirmin"><span>Засчитать директора в смену<br><span class="note">Если кто-то не может выйти, директор займёт его место.</span></span><input type="checkbox" id="dirmin" ${a.dirMin ? 'checked' : ''} ${on ? '' : 'disabled'}></label>` : ''}
-      <label class="switch" for="lock">Зафиксировать ячейку<input type="checkbox" id="lock" ${a.locked ? 'checked' : ''}></label>
-      <p class="note">${a.status === 'mandatory' ? 'Это обязательная смена: время можно поменять. ' : ''}Изменённая ячейка фиксируется автоматически. Зафиксированные ячейки не меняются при пересчёте.</p>
-      <div class="kv"><span>Факт / Норма</span><b>${fmtH(f)} / ${fmtH(computeNorms(ctx).norms[emp.id])} ч</b></div>
-      <div class="kv"><span>На смене в этот день</span><b>длинных ${L} из ${ctx.needLong}, коротких ${Sh} из ${ctx.needShort}${dirExtra(c, sh.day) ? ' + директор' : ''}</b></div>`;
-    $('#lock').addEventListener('change', ev => setLock(sh.id, sh.day, ev.target.checked));
-    $('#dirmin')?.addEventListener('change', ev => edit(a.status, a.kind, a.hours, ev.target.checked));
+    const ctx = S.gctx, c = cur(), p = ctx.people.find(x => x.id === sh.id), a = c.grid[sh.id][sh.day], mark = ctx.marks[sh.id]?.[sh.day];
+    const opt = (v, t, s, col) => `<button data-act="set-mark" data-s="${v}" style="--c:${col}" aria-pressed="${a.code === v}">${t}${s ? `<br><small>${s}</small>` : ''}</button>`;
+    const shifts = ['long', 'early', 'late'].map(k => opt(k, SHIFT_NAMES[k], codeTime(ctx, k), COLORS[k])).join('');
+    body.innerHTML = `<header><h3>${esc(nameOf(sh.id))}<br><small>${dateTitle(ctx, sh.day)}</small></h3>${close}</header>
+      ${p.director ? `<div class="opts">${opt('own', 'Рабочий день', codeTime(ctx, 'own', p), COLORS.own)}${opt('off', 'Выходной', '', COLORS.off)}${opt('vacation', 'Отпуск', '', COLORS.vacation)}</div>
+        <h4>Поставить в смену вместо сотрудника</h4><div class="opts">${shifts}</div>`
+      : `<div class="opts">${shifts}${opt('off', 'Выходной', '', COLORS.off)}${opt('vacation', 'Отпуск', '', COLORS.vacation)}</div>`}
+      ${mark ? '<button class="btn" data-act="unmark">Убрать отметку — день выберет программа</button>' : ''}
+      <p class="note">После правки график подстроится. Правила с галочками над графиком не нарушаются.</p>`;
+  } else if (sh.type === 'day') {
+    const ctx = S.gctx, n = needFor(ctx, sh.day), custom = !!ctx.dayNeed[sh.day];
+    body.innerHTML = `<header><h3>Сколько людей нужно<br><small>${dateTitle(ctx, sh.day)}</small></h3>${close}</header>
+      <div class="row"><span>Полная смена<br><small>${codeTime(ctx, 'long')}</small></span>${stepper('dn-long', n.long + ' чел.', n.long > 0, n.long < 30)}</div>
+      <div class="row"><span>Короткие смены<br><small>${codeTime(ctx, 'early')}, ${codeTime(ctx, 'late')}</small></span>${stepper('dn-short', n.short + ' чел.', n.short > 0, n.short < 30)}</div>
+      <p class="note">Всего ${n.long + n.short} чел. ${custom ? `Обычно — ${ctx.needLong + ctx.needShort}.` : 'Как в настройках.'}</p>
+      ${custom ? '<button class="btn" data-act="dn-reset">Вернуть как обычно</button>' : ''}`;
   } else if (sh.type === 'image') {
     body.innerHTML = `<header><h3>Картинка графика</h3>${close}</header>
       <img class="shot" src="${S.img.url}" alt="График смен, ${esc(S.img.title)}">
-      <p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати выберите «Поделиться» → «Напечатать».</p>
+      <p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати: «Поделиться» → «Напечатать».</p>
       ${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}`;
   }
 }
 
-function edit(status, kind, hours, dirMin) {
-  const sh = S.sheet;
-  applyChange(() => { S.cands[S.sel] = rebalanceSchedule(cur(), S.gctx, { id: sh.id, day: sh.day, status, kind, hours, dirMin }); });
-}
-function setLock(id, day, locked) {
-  applyChange(() => {
-    const c = structuredClone(cur());
-    c.grid[id][day].locked = locked;
-    S.cands[S.sel] = locked ? c : rebalanceSchedule(c, S.gctx);
-  });
-}
-function newEmployee(name) {
-  return normEmp({ id: uid(), name: name.trim() || `Сотрудник ${S.employees.length + 1}` });
-}
-function rebalanceAll() {
-  applyChange(() => { S.cands = S.cands.map(c => rebalanceSchedule(c, S.gctx)); });
-}
-function renamePerson(id, name) {
-  for (const list of [S.employees, S.gctx.employees]) { const e = list.find(x => x.id === id); if (e) e.name = name; }
-  save(); renderSetup(); renderGrid();
-  clearTimeout(renamePerson.timer);
-  renamePerson.timer = setTimeout(() => { S.cands = S.cands.map(c => rebalanceSchedule(c, S.gctx)); renderGrid(); }, 600);
-}
-function addToSchedule(name) {
-  const e = newEmployee(name);
-  S.employees.push(e); S.gctx.employees.push(structuredClone(e)); save();
-  S.sheet = null; renderSheet(); renderSetup(); rebalanceAll();
-  toast(`${e.name} добавлен(а) в график`);
-}
-function removeFromSchedule(id) {
-  const e = S.gctx.employees.find(x => x.id === id);
-  S.employees = S.employees.filter(x => x.id !== id);
-  S.gctx.employees = S.gctx.employees.filter(x => x.id !== id);
-  for (const c of S.cands) delete c.grid[id];
-  save(); S.sheet = null; renderSheet(); renderSetup(); rebalanceAll();
-  toast(`${e?.name || 'Сотрудник'} удалён(а) из графика`);
-}
-
 /* ---------- Картинка (canvas, масштаб 3) ---------- */
 function drawSchedule(c, ctx) {
-  const D = daysIn(ctx.year, ctx.month), E = ctx.employees.length, { norms } = computeNorms(ctx);
-  const nameW = 170, cellW = 44, rowH = 34, totW = 104, pad = 28, titleH = 52;
-  const W = pad * 2 + nameW + D * cellW + totW;
-  const font = (wt, px) => `${wt} ${px}px "Golos Text", system-ui, sans-serif`;
-  const measure = document.createElement('canvas').getContext('2d');
-  measure.font = font(400, 12);
-  const lines = [];
-  if (c.compromises.length) {
-    let line = 'Компромиссы: ';
-    for (const t of c.compromises.map((t, i) => t + (i < c.compromises.length - 1 ? '; ' : ''))) {
-      if (measure.measureText(line + t).width > W - pad * 2) { lines.push(line); line = t; } else line += t;
-    }
-    lines.push(line);
-  }
-  const tableH = rowH * (E + 2), H = pad + titleH + tableH + 44 + lines.length * 17 + pad;
+  const D = daysIn(ctx.year, ctx.month), E = ctx.people.length;
+  const nameW = 160, cellW = 44, rowH = 34, totW = 80, pad = 28, titleH = 52;
+  const W = pad * 2 + nameW + D * cellW + totW, tableH = rowH * (E + 2), H = pad + titleH + tableH + 40 + pad;
   const scale = Math.min(3, Math.sqrt(16e6 / (W * H)));
   const cv = document.createElement('canvas');
   cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
-  const g = cv.getContext('2d');
+  const g = cv.getContext('2d'), font = (wt, px) => `${wt} ${px}px "Golos Text", system-ui, sans-serif`;
   g.scale(scale, scale);
   g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
   g.textBaseline = 'middle';
   g.fillStyle = '#111'; g.font = font(700, 24); g.textAlign = 'left';
   g.fillText(`График смен — ${MONTHS[ctx.month - 1]} ${ctx.year}`, pad, pad + 16);
-  g.fillStyle = '#666'; g.font = font(500, 14); g.textAlign = 'right';
-  g.fillText(c.title, W - pad, pad + 16);
   const y0 = pad + titleH;
   const box = (x, y, w, fill, text, color = '#111', wt = 500, align = 'center', px = 12) => {
     if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, rowH); }
@@ -824,44 +824,44 @@ function drawSchedule(c, ctx) {
   const xDay = d => pad + nameW + (d - 1) * cellW, xTot = pad + nameW + D * cellW;
   box(pad, y0, nameW, null, 'Сотрудник', '#111', 700, 'left');
   for (let d = 1; d <= D; d++) {
-    const we = wdIndex(ctx.year, ctx.month, d) >= 5;
-    box(xDay(d), y0, cellW, we ? '#fdeceb' : null, '', '#111');
+    const wd = wdIndex(ctx.year, ctx.month, d), we = wd >= 5;
+    box(xDay(d), y0, cellW, we ? '#fdeceb' : null, '');
     g.textAlign = 'center'; g.fillStyle = we ? '#c3352b' : '#111';
     g.font = font(700, 12); g.fillText(String(d), xDay(d) + cellW / 2, y0 + 12);
-    g.font = font(400, 9); g.fillText(WD[wdIndex(ctx.year, ctx.month, d)], xDay(d) + cellW / 2, y0 + 25);
+    g.font = font(400, 9); g.fillText(WD[wd], xDay(d) + cellW / 2, y0 + 25);
   }
-  box(xTot, y0, totW, null, 'Факт / Норма', '#111', 700);
-  ctx.employees.forEach((emp, i) => {
+  box(xTot, y0, totW, null, 'Часы', '#111', 700);
+  ctx.people.forEach((p, i) => {
     const y = y0 + rowH * (i + 1);
-    box(pad, y, nameW, null, emp.name + (emp.director ? ' (дир.)' : ''), '#111', 600, 'left');
+    let f = 0;
+    box(pad, y, nameW, null, nameOf(p.id) + (p.director ? ' (дир.)' : ''), '#111', 600, 'left');
     for (let d = 1; d <= D; d++) {
-      const a = c.grid[emp.id]?.[d] || { status: 'off', hours: 0 }, on = isWork(a.status);
-      box(xDay(d), y, cellW, tint(cellColor(a), on ? .88 : .2), on ? kindLabel(ctx, a.kind, emp) : STATUS[a.status].short, on ? '#fff' : '#222', on ? 700 : 500, 'center', on ? 11 : 12);
+      const a = c.grid[p.id][d], on = isWorkCode(a.code);
+      f += a.hours;
+      box(xDay(d), y, cellW, tint(COLORS[a.code], on ? .9 : .22), on ? codeLabel(ctx, a.code, p) : a.code === 'vacation' ? 'Отп' : 'В', on ? '#fff' : '#222', on ? 700 : 500, 'center', on ? 11 : 12);
     }
-    const f = worked(c, emp.id), n = norms[emp.id];
-    box(xTot, y, totW, f > ctx.maxHours + 0.01 ? '#fbdcd9' : Math.abs(f - n) <= 8 ? '#e3f4ea' : '#fdf0dc', `${fmtH(f)} / ${fmtH(n)}`, '#111', 700);
+    box(xTot, y, totW, f > ctx.maxHours ? '#fbdcd9' : null, `${fmtH(f)} ч`, '#111', 700);
   });
   const yT = y0 + rowH * (E + 1);
-  box(pad, yT, nameW, null, 'Итого: длинные · короткие', '#111', 700, 'left');
+  box(pad, yT, nameW, null, 'На смене', '#111', 700, 'left');
   for (let d = 1; d <= D; d++) {
-    const [L, Sh] = groupsOn(c, d);
-    box(xDay(d), yT, cellW, L < ctx.needLong || Sh < ctx.needShort ? '#fbdcd9' : null, `${L}·${Sh}${dirExtra(c, d) ? '+Д' : ''}`, '#111', 700, 'center', 11);
+    let L = 0, Sh = 0;
+    for (const p of ctx.people) { const a = c.grid[p.id][d]; if (a.counts) a.code === 'long' ? L++ : Sh++; }
+    const n = needFor(ctx, d);
+    box(xDay(d), yT, cellW, L < n.long || Sh < n.short ? '#fbdcd9' : null, String(L + Sh), '#111', 700);
   }
-  box(xTot, yT, totW, null, fmtH(ctx.employees.reduce((s, e) => s + worked(c, e.id), 0)) + ' ч', '#111', 700);
+  box(xTot, yT, totW, null, '');
   g.lineWidth = 1.2; g.strokeStyle = 'rgba(0,0,0,.6)'; g.strokeRect(pad, y0, W - pad * 2, tableH);
   let x = pad; const yL = y0 + tableH + 24;
   g.font = font(400, 12); g.textAlign = 'left';
-  const legend = [...BASE_KINDS.map(k => [KINDS[k].color, .88, `${kindTime(ctx, k)} (${fmtH(kindHours(ctx, k))} ч)`]),
-    ...ctx.employees.filter(e => e.shift).map(e => [KINDS.own.color, .88, `${kindTime(ctx, 'own', e)} (${e.name})`]),
-    ...['vacation', 'fixedOff', 'desiredOff', 'off'].map(s => [STATUS[s].color, .35, `${STATUS[s].short} — ${STATUS[s].title}`])];
+  const legend = [...['long', 'early', 'late'].map(k => [COLORS[k], .9, `${codeTime(ctx, k)} — ${SHIFT_NAMES[k].toLowerCase()}`]),
+    ...ctx.people.filter(p => p.director).map(p => [COLORS.own, .9, `${codeTime(ctx, 'own', p)} — ${nameOf(p.id)}, директор`]),
+    [COLORS.off, .35, 'В — выходной'], [COLORS.vacation, .35, 'Отп — отпуск']];
   for (const [col, al, t] of legend) {
     g.fillStyle = tint(col, al); g.fillRect(x, yL - 7, 14, 14);
     g.fillStyle = '#333'; g.fillText(t, x + 20, yL);
     x += 20 + g.measureText(t).width + 22;
   }
-  g.textAlign = 'right'; g.fillText(`В смену: ${ctx.needLong} длинных + ${ctx.needShort} коротких · лимит ${ctx.maxHours} ч/мес`, W - pad, yL);
-  g.textAlign = 'left'; g.fillStyle = '#666';
-  lines.forEach((l, i) => g.fillText(l, pad, yL + 26 + i * 17));
   return cv;
 }
 async function makeImage() {
@@ -883,97 +883,83 @@ function shareImage() {
 }
 
 /* ---------- События ---------- */
-function render() {
+function renderTabs() {
   $('#setup').hidden = S.tab !== 'setup'; $('#grid').hidden = S.tab !== 'grid';
   $('#tab-setup').setAttribute('aria-pressed', S.tab === 'setup'); $('#tab-grid').setAttribute('aria-pressed', S.tab === 'grid');
-  $('#period-label').textContent = S.gctx && S.tab === 'grid' ? `${MONTHS[S.gctx.month - 1]} ${S.gctx.year}` : `${MONTHS[S.month - 1]} ${S.year}`;
-  renderSetup(); renderGrid(); renderSheet();
+  $('#period-label').textContent = `${MONTHS[S.month - 1]} ${S.year}`;
 }
 document.addEventListener('change', ev => {
-  const id = ev.target.id;
-  if (id === 'month') { S.month = +ev.target.value; save(); render(); }
-  const m = id.match(/^t-(long|early|late)-(start|end)$/);
-  if (m && ev.target.value) { S.shifts[m[1]][m[2]] = ev.target.value; save(); renderSetup(); renderGrid(); }
+  const t = ev.target, id = t.id;
+  if (id === 'month') { S.month = +t.value; save(); renderTabs(); renderSetup(); return; }
+  if (id === 'max-hours') { S.maxHours = clamp(Math.round(+t.value || S.maxHours), 1, 744); save(); renderSetup(); return; }
+  const tm = id.match(/^t-(long|early|late)-(start|end)$/);
+  if (tm && t.value) { S.shifts[tm[1]][tm[2]] = t.value; save(); renderSetup(); return; }
+  const dm = id.match(/^d-time-(start|end)$/);
+  if (dm && t.value) { findPerson(S.sheet.id)[dm[1]] = t.value; save(); renderSetup(); renderSheet(); return; }
+  const sm = id.match(/^st-(hours|staff|schema)$/);
+  if (sm) { S.strict[sm[1]] = t.checked; save(); }
 });
 document.addEventListener('click', ev => {
   if (ev.target.id === 'sheet') { S.sheet = null; renderSheet(); return; }
-  if (S.delConfirm && !ev.target.closest('[data-act=quick-del]')) { S.delConfirm = null; renderSetup(); }
   const b = ev.target.closest('[data-act]');
   if (!b || b.disabled) return;
   const v = +b.dataset.v || 0, sh = S.sheet;
-  const emp = sh?.type === 'emp' ? S.employees.find(x => x.id === sh.id) : null;
-  const setup = () => { save(); renderSetup(); renderGrid(); };
+  const p = sh?.type === 'person' ? findPerson(sh.id) : null;
   switch (b.dataset.act) {
-    case 'tab': S.tab = b.dataset.tab; render(); break;
-    case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); render(); break;
-    case 'cons': S.maxCons = clamp(S.maxCons + v, 1, 7); setup(); break;
-    case 'cap': S.maxHours = clamp(S.maxHours + v * 4, 40, 400); setup(); break;
-    case 'need-long': S.needLong = clamp(S.needLong + v, 0, 30); setup(); break;
-    case 'need-short': S.needShort = clamp(S.needShort + v, 0, 30); setup(); break;
-    case 'quick-del':
-      if (S.delConfirm !== b.dataset.id) { S.delConfirm = b.dataset.id; renderSetup(); break; }
-      S.employees = S.employees.filter(x => x.id !== b.dataset.id); S.delConfirm = null; setup(); toast('Сотрудник удалён'); break;
-    case 'person': S.sheet = { type: 'person', id: b.dataset.id }; renderSheet(); break;
-    case 'person-new': S.sheet = { type: 'person-new' }; renderSheet(); break;
-    case 'person-del':
-      if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
-      removeFromSchedule(sh.id); break;
-    case 'samples': S.employees = samples(); S.year = 2026; S.month = 10; save(); render(); toast('Загружен список на октябрь'); break;
-    case 'wday': {
-      const i = +b.dataset.w, w = emp.weekWork.includes(i) ? 'work' : emp.weekOff.includes(i) ? 'off' : '';
-      emp.weekWork = emp.weekWork.filter(x => x !== i); emp.weekOff = emp.weekOff.filter(x => x !== i);
-      if (w === '') emp.weekWork.push(i); else if (w === 'work') emp.weekOff.push(i);
-      setup(); renderSheet(); break;
-    }
-    case 'generate':
-      b.textContent = 'Считаю…'; b.disabled = true;
-      setTimeout(generate, 30); break;
-    case 'edit-emp': S.sheet = { type: 'emp', id: b.dataset.id, mode: 'vacation' }; renderSheet(); break;
+    case 'tab': if (b.dataset.tab === 'grid') openGrid(false); else { S.tab = 'setup'; renderTabs(); renderSetup(); } break;
+    case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); renderTabs(); renderSetup(); break;
+    case 'need-long': S.needLong = clamp(S.needLong + v, 0, 30); save(); renderSetup(); break;
+    case 'need-short': S.needShort = clamp(S.needShort + v, 0, 30); save(); renderSetup(); break;
+    case 'work-days': S.workDays = clamp(S.workDays + v, 1, 14); save(); renderSetup(); break;
+    case 'off-days': S.offDays = clamp(S.offDays + v, 1, 7); save(); renderSetup(); break;
+    case 'generate': openGrid(true); break;
+    case 'person': S.sheet = { type: 'person', id: b.dataset.id, mode: 'off', kind: 'long' }; renderSheet(); break;
     case 'close': S.sheet = null; renderSheet(); break;
-    case 'emp-target': emp.target = clamp(emp.target + v * 4, 0, S.maxHours); setup(); renderSheet(); break;
+    case 'd-work': p.workDays = clamp(p.workDays + v, 1, 14); save(); renderSetup(); renderSheet(); break;
+    case 'd-off': p.offDays = clamp(p.offDays + v, 1, 7); save(); renderSetup(); renderSheet(); break;
     case 'mode': sh.mode = b.dataset.m; renderSheet(); break;
+    case 'kind': sh.kind = b.dataset.k; renderSheet(); break;
     case 'day': {
-      const d = +b.dataset.d, key = { vacation: 'vac', fixedOff: 'off', desiredOff: 'des', mandatory: 'man' }[sh.mode];
-      const had = emp[key].includes(d);
-      for (const k of ['vac', 'off', 'des', 'man']) emp[k] = emp[k].filter(x => x !== d);
-      if (!had) emp[key].push(d);
-      setup(); renderSheet(); break;
+      const d = +b.dataset.d, code = sh.mode === 'work' ? (S.directors.includes(p) ? 'own' : sh.kind) : sh.mode;
+      setMark(p.id, d, monthMarks()[p.id]?.[d] === code ? null : code);
+      save(); renderSheet(); renderSetup(); break;
     }
-    case 'clear-days': emp.vac = []; emp.off = []; emp.des = []; emp.man = []; emp.weekWork = []; emp.weekOff = []; setup(); renderSheet(); break;
-    case 'del-emp':
+    case 'del-person':
       if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
-      S.employees = S.employees.filter(x => x.id !== sh.id); S.sheet = null; setup(); renderSheet(); break;
-    case 'variant': S.sel = +b.dataset.i; renderGrid(); break;
+      S.staff = S.staff.filter(x => x.id !== sh.id); S.directors = S.directors.filter(x => x.id !== sh.id);
+      for (const k in S.marks) delete S.marks[k][sh.id];
+      S.sheet = null; save(); renderSheet(); renderSetup(); toast('Удалено'); break;
+    case 'variant': S.sel = +b.dataset.i; S.warn = null; renderGrid(); break;
     case 'cell': S.sheet = { type: 'cell', id: b.dataset.id, day: +b.dataset.d }; renderSheet(); break;
-    case 'set-status': {
-      const a = cur().grid[sh.id][sh.day], s = b.dataset.s, empCtx = S.gctx.employees.find(x => x.id === sh.id);
-      if (KINDS[s]) edit(a.status === 'mandatory' ? 'mandatory' : 'work', s, isWork(a.status) && a.kind === s ? a.hours : kindHours(S.gctx, s, empCtx), a.dirMin);
-      else edit(s, null, 0, false);
+    case 'set-mark': case 'unmark': {
+      const code = b.dataset.act === 'unmark' ? null : b.dataset.s, cell = { id: sh.id, day: sh.day };
+      S.sheet = null; renderSheet();
+      gridEdit(() => setMark(cell.id, cell.day, code), cell); break;
+    }
+    case 'day-need': S.sheet = { type: 'day', day: +b.dataset.d }; renderSheet(); break;
+    case 'dn-long': case 'dn-short': case 'dn-reset': {
+      const n = { ...needFor(S.gctx, sh.day) }, day = sh.day;
+      if (b.dataset.act !== 'dn-reset') n[b.dataset.act === 'dn-long' ? 'long' : 'short'] = clamp(n[b.dataset.act === 'dn-long' ? 'long' : 'short'] + v, 0, 30);
+      gridEdit(() => {
+        const m = monthNeed();
+        if (b.dataset.act === 'dn-reset' || (n.long === S.needLong && n.short === S.needShort)) delete m[day]; else m[day] = n;
+      });
       break;
     }
-    case 'cell-hours': { const a = cur().grid[sh.id][sh.day]; edit(a.status, a.kind, clamp(a.hours + v * 0.5, 0.5, 24), a.dirMin); break; }
-    case 'reset':
-      applyChange(() => {
-        const c = structuredClone(cur());
-        for (const id in c.grid) for (const d in c.grid[id]) c.grid[id][d].locked = false;
-        S.cands[S.sel] = rebalanceSchedule(c, S.gctx);
-      });
-      toast('Ручные правки сброшены'); break;
+    case 'undo': undoEdit(); break;
+    case 'keep': S.warn = null; renderGrid(); break;
     case 'image': makeImage(); break;
     case 'share': shareImage(); break;
   }
 });
 document.addEventListener('submit', ev => {
   ev.preventDefault();
-  if (ev.target.id === 'add-form') {
-    const e = newEmployee($('#new-name').value);
-    S.employees.push(e); save(); renderSetup(); renderGrid(); $('#new-name').focus();
-    toast(`${e.name} добавлен(а)`);
-  } else if (ev.target.id === 'person-form') addToSchedule($('#person-new-name').value);
+  const dir = ev.target.id === 'add-dir', input = $(dir ? '#new-dir' : '#new-staff');
+  const list = dir ? S.directors : S.staff, name = input.value.trim() || (dir ? 'Директор' : `Сотрудник ${S.staff.length + 1}`);
+  list.push(dir ? { id: uid(), name, start: '10:00', end: '19:00', workDays: 5, offDays: 2 } : { id: uid(), name });
+  save(); renderSetup(); $(dir ? '#new-dir' : '#new-staff').focus(); toast(`${name} — добавлено`);
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
 
-S.gctx = makeCtx();
-S.cands = generateSchedules(S.gctx);
-render();
+renderTabs(); renderSetup();
 </script>
