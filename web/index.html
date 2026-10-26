@@ -55,6 +55,15 @@ input[type="text"] { width: 100%; }
 .btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .emp { display: grid; gap: 4px; text-align: left; width: 100%; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
 .emp b { font-weight: 600; }
+.emp-row { display: flex; gap: 8px; align-items: stretch; }
+.emp-row .emp { flex: 1; min-width: 0; }
+.emp-row .del { flex: none; border: 1px solid var(--line); background: var(--surface-2); color: var(--danger); border-radius: 10px; padding: 0 12px; font-weight: 600; min-width: 44px; }
+.emp-row .del.confirm { background: var(--danger); color: #fff; border-color: transparent; }
+.addform { display: flex; gap: 8px; }
+.addform input { flex: 1; }
+.sched th.name button.nm-btn { all: unset; cursor: pointer; display: block; }
+.sched th.name button.nm-btn:focus-visible { outline: 2px solid var(--accent); }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); }
 .emp .meta { color: var(--muted); font-size: 13px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
@@ -414,13 +423,14 @@ function renderSetup() {
     <div class="row"><span>Максимум смен подряд</span>${stepper('cons', S.maxCons, null, S.maxCons > 1, S.maxCons < 7)}</div>
   </section>
   <section class="panel"><h2>Сотрудники · ${S.employees.length}</h2>
-    ${S.employees.map(e => `<button class="emp" data-act="edit-emp" data-id="${e.id}">
+    ${S.employees.map(e => `<div class="emp-row"><button class="emp" data-act="edit-emp" data-id="${e.id}">
       <b>${esc(e.name || 'Без имени')}</b>
       <span class="meta">Смена ${fmtH(e.shift)} ч · норма ${fmtH(e.target)} ч/мес</span>
       <span class="chips">${chip(e.vac.length, 'vacation')}${chip(e.des.length, 'desiredOff')}${chip(e.man.length, 'mandatory')}${e.director ? '<span class="chip" style="--c:var(--accent)">Директор</span>' : ''}</span>
-    </button>`).join('') || '<p class="note">Добавьте хотя бы одного сотрудника.</p>'}
-    <div class="btns"><button class="btn" data-act="add-emp">+ Добавить сотрудника</button><button class="btn" data-act="samples">Тестовые сотрудники</button></div>
-    <p class="note">Для быстрого старта уже добавлены тестовые сотрудники. Нажмите на карточку, чтобы изменить имя, часы и отметить даты.</p>
+    </button><button class="del ${S.delConfirm === e.id ? 'confirm' : ''}" data-act="quick-del" data-id="${e.id}" aria-label="Удалить ${esc(e.name)}">${S.delConfirm === e.id ? 'Удалить?' : '✕'}</button></div>`).join('') || '<p class="note">Добавьте хотя бы одного сотрудника.</p>'}
+    <form class="addform" id="add-form" autocomplete="off"><input type="text" id="new-name" placeholder="Имя нового сотрудника" aria-label="Имя нового сотрудника"><button class="btn" type="submit">Добавить</button></form>
+    <div class="btns"><button class="btn" data-act="samples">Заменить на тестовых сотрудников</button></div>
+    <p class="note">Нажмите на карточку, чтобы изменить имя, часы и отметить даты. Кнопка ✕ удаляет сотрудника (нужно нажать дважды).</p>
   </section>
   <button class="btn primary" data-act="generate" ${S.employees.length ? '' : 'disabled'}>Сформировать график</button>`;
 }
@@ -437,7 +447,9 @@ function renderGrid() {
       data-act="cell" data-id="${emp.id}" data-d="${d}" aria-label="${esc(emp.name)}, ${d} число: ${STATUS[a.status].title}">
       <b>${on ? fmtH(a.hours) : STATUS[a.status].short}</b>${on ? `<i>${a.dirMin ? 'мин' : STATUS[a.status].short}</i>` : ''}</button></td>`;
   };
+  const stale = JSON.stringify([S.employees, S.year, S.month, S.minStaff, S.maxCons]) !== JSON.stringify([ctx.employees, ctx.year, ctx.month, ctx.minStaff, ctx.maxCons]);
   el.innerHTML = `
+  ${stale ? '<div class="banner"><span>Настройки изменились после составления графика.</span><button class="btn" data-act="generate">Сформировать заново</button></div>' : ''}
   ${S.cands.length > 1 ? `<div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">Вариант ${i + 1}</button>`).join('')}</div>` : ''}
   <section class="panel">
     <div class="summary"><h1>${esc(c.title)}</h1><span class="pill ${c.penalty ? 'warn' : 'ok'}">Штраф: ${c.penalty}</span></div>
@@ -445,6 +457,7 @@ function renderGrid() {
       : '<p class="note" style="color:var(--ok)">Все ограничения соблюдены.</p>'}
     <div class="btns">
       <button class="btn" data-act="image">В общий чат (Картинка)</button>
+      <button class="btn" data-act="person-new">+ Сотрудник</button>
       <button class="btn" data-act="reset" ${locks ? '' : 'disabled'}>Сбросить ручные правки${locks ? ` (${locks})` : ''}</button>
     </div>
   </section>
@@ -453,12 +466,12 @@ function renderGrid() {
       ${days.map(d => `<th class="${wdIndex(ctx.year, ctx.month, d) >= 5 ? 'we' : ''}"><b>${d}</b>${WD[wdIndex(ctx.year, ctx.month, d)]}</th>`).join('')}</tr></thead>
     <tbody>${ctx.employees.map(emp => {
       const f = worked(c, emp.id), ok = Math.abs(f - emp.target) < 0.5;
-      return `<tr><th class="name"><span class="nm">${esc(emp.name)}</span>${emp.director ? '<span class="dir">дир.</span> ' : ''}<span class="fact ${ok ? 'ok' : 'warn'}">${fmtH(f)} / ${fmtH(emp.target)}</span></th>${days.map(d => cell(emp, d)).join('')}</tr>`;
+      return `<tr><th class="name"><button class="nm-btn" data-act="person" data-id="${emp.id}" aria-label="Изменить или удалить ${esc(emp.name)}"><span class="nm">${esc(emp.name)}</span></button>${emp.director ? '<span class="dir">дир.</span> ' : ''}<span class="fact ${ok ? 'ok' : 'warn'}">${fmtH(f)} / ${fmtH(emp.target)}</span></th>${days.map(d => cell(emp, d)).join('')}</tr>`;
     }).join('')}</tbody>
     <tfoot><tr><th class="name">Итого на смене</th>${days.map(d => { const n = staffOn(c, d); return `<td><span class="tot ${n < ctx.minStaff ? 'bad' : 'ok'}">${n}${dirExtra(c, d) ? '<small>+Д</small>' : ''}</span></td>`; }).join('')}</tr></tfoot>
   </table></div>
   <div class="legend">${Object.keys(STATUS).map(s => `<span style="--c:var(--s-${s})">${STATUS[s].short} — ${STATUS[s].title}</span>`).join('')}<span style="--c:var(--accent)">«+Д» — директор на смене сверх минимума, «мин» — директор засчитан в минимум</span></div>
-  <p class="note">Нажмите на ячейку, чтобы поменять статус или часы. Остальной график подстроится автоматически, изменённые ячейки подсветятся.</p>`;
+  <p class="note">Нажмите на имя, чтобы переименовать или удалить сотрудника. Нажмите на ячейку, чтобы поменять статус или часы. Остальной график подстроится автоматически, изменённые ячейки подсветятся.</p>`;
   const wrap = el.querySelector('.tablewrap');
   if (scroll) { wrap.scrollLeft = scroll[0]; wrap.scrollTop = scroll[1]; }
   el.querySelector('#comp')?.addEventListener('toggle', e => { S.compOpen = e.target.open; });
@@ -489,6 +502,20 @@ function renderSheet() {
         <button class="btn danger" data-act="del-emp">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить сотрудника'}</button></div>`;
     $('#emp-name').addEventListener('input', ev => { e.name = ev.target.value; save(); renderSetup(); });
     $('#emp-dir').addEventListener('change', ev => { e.director = ev.target.checked; save(); renderSetup(); });
+  } else if (sh.type === 'person') {
+    const e = S.gctx.employees.find(x => x.id === sh.id);
+    if (!e) { S.sheet = null; box.hidden = true; return; }
+    body.innerHTML = `<header><h3>Сотрудник в графике</h3>${close}</header>
+      <input type="text" id="person-name" value="${esc(e.name)}" placeholder="Имя" autocomplete="off">
+      <div class="kv"><span>Смена / норма</span><b>${fmtH(e.shift)} ч / ${fmtH(e.target)} ч</b></div>
+      <p class="note">Часы, норму и даты можно поменять на вкладке «Настройка». После удаления график пересчитается, чтобы закрыть освободившиеся смены.</p>
+      <button class="btn danger" data-act="person-del">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить из графика'}</button>`;
+    $('#person-name').addEventListener('input', ev => renamePerson(e.id, ev.target.value));
+  } else if (sh.type === 'person-new') {
+    body.innerHTML = `<header><h3>Новый сотрудник</h3>${close}</header>
+      <form class="addform" id="person-form" autocomplete="off"><input type="text" id="person-new-name" placeholder="Имя"><button class="btn primary" type="submit" style="padding:9px 14px;font-size:15px">Добавить</button></form>
+      <p class="note">Сотрудник получит смену 12 ч и норму 144 ч. График подстроится: новому сотруднику назначатся смены, остальным часть смен снимется.</p>`;
+    $('#person-new-name').focus();
   } else if (sh.type === 'cell') {
     const c = cur(), ctx = S.gctx, emp = ctx.employees.find(x => x.id === sh.id), a = c.grid[sh.id][sh.day];
     const on = isWork(a.status), shown = a.status === 'desiredOff' ? 'off' : a.status;
@@ -521,6 +548,33 @@ function setLock(id, day, locked) {
     c.grid[id][day].locked = locked;
     S.cands[S.sel] = locked ? c : rebalanceSchedule(c, S.gctx);
   });
+}
+
+function newEmployee(name) {
+  return { id: uid(), name: name.trim() || `Сотрудник ${S.employees.length + 1}`, shift: 12, target: 144, vac: [], des: [], man: [], director: false };
+}
+function rebalanceAll() {
+  applyChange(() => { S.cands = S.cands.map(c => rebalanceSchedule(c, S.gctx)); });
+}
+function renamePerson(id, name) {
+  for (const list of [S.employees, S.gctx.employees]) { const e = list.find(x => x.id === id); if (e) e.name = name; }
+  save(); renderSetup(); renderGrid();
+  clearTimeout(renamePerson.timer);
+  renamePerson.timer = setTimeout(() => { S.cands = S.cands.map(c => rebalanceSchedule(c, S.gctx)); renderGrid(); }, 600);
+}
+function addToSchedule(name) {
+  const e = newEmployee(name);
+  S.employees.push(e); S.gctx.employees.push(structuredClone(e)); save();
+  S.sheet = null; renderSheet(); renderSetup(); rebalanceAll();
+  toast(`${e.name} добавлен(а) в график`);
+}
+function removeFromSchedule(id) {
+  const e = S.gctx.employees.find(x => x.id === id);
+  S.employees = S.employees.filter(x => x.id !== id);
+  S.gctx.employees = S.gctx.employees.filter(x => x.id !== id);
+  for (const c of S.cands) delete c.grid[id];
+  save(); S.sheet = null; renderSheet(); renderSetup(); rebalanceAll();
+  toast(`${e?.name || 'Сотрудник'} удалён(а) из графика`);
 }
 
 /* ---------- Картинка (canvas, масштаб 3) ---------- */
@@ -627,6 +681,7 @@ document.addEventListener('change', ev => {
 });
 document.addEventListener('click', ev => {
   if (ev.target.id === 'sheet') { S.sheet = null; renderSheet(); return; }
+  if (S.delConfirm && !ev.target.closest('[data-act=quick-del]')) { S.delConfirm = null; renderSetup(); }
   const b = ev.target.closest('[data-act]');
   if (!b || b.disabled) return;
   const v = +b.dataset.v || 0, sh = S.sheet;
@@ -636,10 +691,14 @@ document.addEventListener('click', ev => {
     case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); render(); break;
     case 'min': S.minStaff = clamp(S.minStaff + v, 1, 20); save(); renderSetup(); break;
     case 'cons': S.maxCons = clamp(S.maxCons + v, 1, 7); save(); renderSetup(); break;
-    case 'add-emp': {
-      const e = { id: uid(), name: `Сотрудник ${S.employees.length + 1}`, shift: 12, target: 144, vac: [], des: [], man: [] };
-      S.employees.push(e); save(); renderSetup(); S.sheet = { type: 'emp', id: e.id, mode: 'vacation' }; renderSheet(); break;
-    }
+    case 'quick-del':
+      if (S.delConfirm !== b.dataset.id) { S.delConfirm = b.dataset.id; renderSetup(); break; }
+      S.employees = S.employees.filter(x => x.id !== b.dataset.id); S.delConfirm = null; save(); renderSetup(); toast('Сотрудник удалён'); break;
+    case 'person': S.sheet = { type: 'person', id: b.dataset.id }; renderSheet(); break;
+    case 'person-new': S.sheet = { type: 'person-new' }; renderSheet(); break;
+    case 'person-del':
+      if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
+      removeFromSchedule(sh.id); break;
     case 'samples': S.employees = samples(); save(); renderSetup(); toast('Добавлены тестовые сотрудники'); break;
     case 'generate':
       b.textContent = 'Считаю…'; b.disabled = true;
@@ -678,6 +737,14 @@ document.addEventListener('click', ev => {
     case 'image': makeImage(); break;
     case 'share': shareImage(); break;
   }
+});
+document.addEventListener('submit', ev => {
+  ev.preventDefault();
+  if (ev.target.id === 'add-form') {
+    const e = newEmployee($('#new-name').value);
+    S.employees.push(e); save(); renderSetup(); renderGrid(); $('#new-name').focus();
+    toast(`${e.name} добавлен(а)`);
+  } else if (ev.target.id === 'person-form') addToSchedule($('#person-new-name').value);
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
 
