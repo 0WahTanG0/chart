@@ -149,6 +149,8 @@ table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric
 .shot { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; -webkit-touch-callout: default; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; background: var(--fg); color: var(--bg);
   padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
@@ -194,8 +196,16 @@ const codeHours = (ctx, code, p) => spanHours(shiftOf(ctx, code, p).start, shift
 const codeLabel = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${hm(s.start)}–${hm(s.end)}`; };
 const codeTime = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${s.start}–${s.end}`; };
 
-// Список на октябрь 2026: отпуска, выходные и рабочие дни отмечены в календарях сотрудников.
-function defaults() {
+// Версия и сборка: 'artifact' — страница на claude.ai, 'web' — itch.io, браузер и приложение Android (сборщик подставляет сам).
+const APP_VERSION = '1.0.0', WEB_BUILD = 1, BUILD_TARGET = 'artifact';
+const inApp = () => !!window.AndroidApp;
+function emptyDefaults() {
+  const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+  return { year: next.getFullYear(), month: next.getMonth() + 1, staff: [], directors: [], marks: {} };
+}
+// @personal-start
+// Список на октябрь 2026: отпуска, выходные и рабочие дни отмечены в календарях сотрудников. В публичные сборки не попадает.
+function personalDefaults() {
   const staff = ['Софа', 'Зарина Д.', 'Зарина Г.', 'Эльза', 'Карина И.', 'Юля', 'ТК', 'Карина Л.', 'Лиза', 'Полина', 'Лера'].map(name => ({ id: uid(), name }));
   const directors = [{ id: uid(), name: 'Алина', start: '10:00', end: '19:00', workDays: 5, offDays: 2 }];
   const by = Object.fromEntries([...staff, ...directors].map(p => [p.name, p.id]));
@@ -211,12 +221,19 @@ function defaults() {
     if (d === 2 || wd === 2 || wd === 6) put('Карина И.', d, 'off');
     if ([3, 4, 7].includes(d)) put('Юля', d, 'off');
     if (d === 12) put('ТК', d, 'off');
-    else if ([5, 6, 0, 3].includes(wd)) put('ТК', d, 'any');
+    else if ([5, 6, 0, 3].includes(wd)) put('ТК', d, 'long');
     if (d >= 2 && d <= 5) put('Карина Л.', d, 'off');
     if (wd === 6 || wd === 0) put('Алина', d, 'off');
   }
   return { year: y, month: m, staff, directors, marks: { [ymKey(y, m)]: marks } };
 }
+// ТК всегда работает полную смену: старые отметки «любая смена» становятся полной.
+function personalMigrate(data) {
+  const tk = data.staff?.find(p => p.name === 'ТК');
+  if (tk) for (const m of Object.values(data.marks || {})) for (const d in m[tk.id] || {}) if (m[tk.id][d] === 'any') m[tk.id][d] = 'long';
+}
+// @personal-end
+const defaults = () => typeof personalDefaults === 'function' ? personalDefaults() : emptyDefaults();
 
 // Сколько дней человек может отработать по своей схеме с учётом отметок.
 function maxWorkable(ctx, p) {
@@ -549,13 +566,24 @@ const S = { shifts: { long: { start: '09:00', end: '22:00' }, early: { start: '1
   needLong: 3, needShort: 4, workDays: 3, offDays: 1, maxHours: 240, dayNeed: {}, strict: { hours: true, staff: true, schema: true },
   cands: [], sel: 0, gctx: null, ver: 0, tab: 'setup', sheet: null, flash: new Set(), img: null, warn: null };
 Object.assign(S, defaults());
-const KEY = 'shift-planner-v5';
+// Ключ хранения не меняется между версиями: обновление приложения не стирает данные.
+const KEY = 'grafik-smen:data', LEGACY_KEYS = ['shift-planner-v5'], DATA_VERSION = 1;
 const SAVE_KEYS = ['year', 'month', 'shifts', 'needLong', 'needShort', 'workDays', 'offDays', 'maxHours', 'staff', 'directors', 'marks', 'dayNeed', 'strict'];
+function exportData() { return { app: 'grafik-smen', v: DATA_VERSION, saved: new Date().toISOString(), ...Object.fromEntries(SAVE_KEYS.map(k => [k, S[k]])) }; }
+// Принимает данные любой прошлой версии и дополняет недостающее значениями по умолчанию.
+function applyData(data) {
+  if (!data || !Array.isArray(data.staff)) return false;
+  if (typeof personalMigrate === 'function') personalMigrate(data);
+  for (const k of SAVE_KEYS) if (data[k] !== undefined) S[k] = data[k];
+  S.directors = (S.directors || []).map(p => ({ start: '10:00', end: '19:00', workDays: 5, offDays: 2, ...p }));
+  S.strict = { hours: true, staff: true, schema: true, ...S.strict };
+  S.marks ||= {}; S.dayNeed ||= {};
+  return true;
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(exportData())); } catch (e) {} }
 try {
-  const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-  if (saved && Array.isArray(saved.staff)) for (const k of SAVE_KEYS) if (saved[k] !== undefined) S[k] = saved[k];
+  for (const k of [KEY, ...LEGACY_KEYS]) if (applyData(JSON.parse(localStorage.getItem(k) || 'null'))) { if (k !== KEY) save(); break; }
 } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(SAVE_KEYS.map(k => [k, S[k]])))); } catch (e) {} }
 const ym = () => ymKey(S.year, S.month);
 const monthMarks = () => (S.marks[ym()] ||= {});
 const monthNeed = () => (S.dayNeed[ym()] ||= {});
@@ -668,7 +696,9 @@ function renderSetup() {
     <form class="addform" id="add-dir" autocomplete="off"><input type="text" id="new-dir" placeholder="Имя директора" aria-label="Имя директора"><button class="btn" type="submit">Добавить</button></form>
     <p class="note">Нажмите на имя, чтобы отметить отпуск, выходные и рабочие дни.</p>
   </section>
-  <button class="btn primary" data-act="generate" ${S.staff.length ? '' : 'disabled'}>Создать график</button>`;
+  <button class="btn primary" data-act="generate" ${S.staff.length ? '' : 'disabled'}>Создать график</button>
+  <div class="foot"><button class="btn" data-act="backup">Резервная копия</button>${inApp() ? '<button class="btn" data-act="check-update">Проверить обновления</button>' : ''}
+    <span class="note">Версия ${APP_VERSION}${inApp() ? ` · приложение ${esc(window.AndroidApp.version())}` : ''}</span></div>`;
 }
 
 /* ---------- График ---------- */
@@ -794,8 +824,28 @@ function renderSheet() {
   } else if (sh.type === 'image') {
     body.innerHTML = `<header><h3>Картинка графика</h3>${close}</header>
       <img class="shot" src="${S.img.url}" alt="График смен, ${esc(S.img.title)}">
-      <p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати: «Поделиться» → «Напечатать».</p>
-      ${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}`;
+      ${inApp() ? `<div class="btns"><button class="btn primary" data-act="share">Поделиться</button><button class="btn" data-act="save-img">Сохранить в галерею</button><button class="btn" data-act="print">Печать</button></div>
+        <p class="note">«Поделиться» — отправить в Telegram, WhatsApp или другой мессенджер.</p>`
+      : BUILD_TARGET === 'web' ? `<div class="btns">${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}<button class="btn" data-act="save-img">Скачать картинку</button><button class="btn" data-act="print">Печать</button></div>`
+      : `<p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати: «Поделиться» → «Напечатать».</p>
+        ${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}`}`;
+  } else if (sh.type === 'backup') {
+    const text = JSON.stringify(exportData());
+    body.innerHTML = `<header><h3>Резервная копия</h3>${close}</header>
+      <p class="note">Копия хранит всё: сотрудников, календари и настройки. Сохраните её перед переходом на другое устройство или в другую версию приложения.</p>
+      <div class="btns">${BUILD_TARGET === 'web' ? '<button class="btn primary" data-act="backup-file">Сохранить файл</button>' : ''}<button class="btn" data-act="backup-copy">Скопировать текст</button></div>
+      <textarea id="backup-text" readonly rows="4" aria-label="Данные копии">${esc(text)}</textarea>
+      <h4>Восстановить из копии</h4>
+      <div class="btns"><label class="btn">Выбрать файл<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain" hidden></label></div>
+      <textarea id="restore-text" rows="4" placeholder="Или вставьте сюда скопированный текст" aria-label="Текст копии для восстановления"></textarea>
+      <button class="btn danger" data-act="restore">${sh.confirm ? 'Текущие данные заменятся. Нажмите ещё раз' : 'Восстановить'}</button>`;
+    if (sh.pending) $('#restore-text').value = sh.pending;
+    $('#restore-text').addEventListener('input', ev => { sh.pending = ev.target.value; sh.confirm = false; });
+    $('#restore-file').addEventListener('change', async ev => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      sh.pending = await f.text(); sh.confirm = false; renderSheet(); toast('Файл загружен — нажмите «Восстановить»');
+    });
   }
 }
 
@@ -882,6 +932,25 @@ function shareImage() {
   }, 'image/png');
 }
 
+function downloadFile(name, url) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+}
+function printImage(url) {
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed;width:0;height:0;border:0;';
+  f.srcdoc = `<!doctype html><style>@page{size:landscape;margin:8mm}body{margin:0}img{width:100%}</style><img src="${url}">`;
+  f.onload = () => { try { f.contentWindow.print(); } catch (e) { toast('Печать недоступна — скачайте картинку и распечатайте её'); } setTimeout(() => f.remove(), 60000); };
+  document.body.append(f);
+}
+async function copyText(area) {
+  try { await navigator.clipboard.writeText(area.value); toast('Скопировано'); return; } catch (e) {}
+  area.removeAttribute('readonly'); area.select();
+  const ok = document.execCommand && document.execCommand('copy');
+  area.setAttribute('readonly', '');
+  toast(ok ? 'Скопировано' : 'Выделите текст и скопируйте его вручную');
+}
+
 /* ---------- События ---------- */
 function renderTabs() {
   $('#setup').hidden = S.tab !== 'setup'; $('#grid').hidden = S.tab !== 'grid';
@@ -949,7 +1018,29 @@ document.addEventListener('click', ev => {
     case 'undo': undoEdit(); break;
     case 'keep': S.warn = null; renderGrid(); break;
     case 'image': makeImage(); break;
-    case 'share': shareImage(); break;
+    case 'share': if (inApp()) window.AndroidApp.shareImage(S.img.url); else shareImage(); break;
+    case 'save-img':
+      if (inApp()) window.AndroidApp.saveImage(S.img.url, `График ${S.img.title}.png`);
+      else S.img.canvas.toBlob(blob => downloadFile(`grafik-smen-${ymKey(S.gctx.year, S.gctx.month)}.png`, URL.createObjectURL(blob)), 'image/png');
+      break;
+    case 'print': if (inApp()) window.AndroidApp.printImage(S.img.url); else printImage(S.img.url); break;
+    case 'backup': S.sheet = { type: 'backup' }; renderSheet(); break;
+    case 'backup-copy': copyText($('#backup-text')); break;
+    case 'backup-file': {
+      const name = `grafik-smen-${new Date().toISOString().slice(0, 10)}.json`, text = $('#backup-text').value;
+      if (inApp()) window.AndroidApp.saveText(name, text);
+      else downloadFile(name, URL.createObjectURL(new Blob([text], { type: 'application/json' })));
+      break;
+    }
+    case 'restore': {
+      let data = null;
+      try { data = JSON.parse(sh.pending || ''); } catch (e) {}
+      if (!data || data.app !== 'grafik-smen' || !Array.isArray(data.staff)) { toast('Это не похоже на копию графика смен'); break; }
+      if (!sh.confirm) { sh.confirm = true; renderSheet(); break; }
+      applyData(data); save(); S.gctx = null; S.cands = []; S.sheet = null; S.tab = 'setup';
+      renderTabs(); renderSetup(); renderSheet(); toast('Данные восстановлены'); break;
+    }
+    case 'check-update': window.AndroidApp.checkUpdates(); break;
   }
 });
 document.addEventListener('submit', ev => {
@@ -960,6 +1051,12 @@ document.addEventListener('submit', ev => {
   save(); renderSetup(); $(dir ? '#new-dir' : '#new-staff').focus(); toast(`${name} — добавлено`);
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
+// Кнопка «Назад» на Android: закрыть окно, затем вернуться к настройке; false — выйти из приложения.
+window.appBack = () => {
+  if (S.sheet) { S.sheet = null; renderSheet(); return true; }
+  if (S.tab === 'grid') { S.tab = 'setup'; renderTabs(); renderSetup(); return true; }
+  return false;
+};
 
 renderTabs(); renderSetup();
 </script>

@@ -1,0 +1,9 @@
+{
+  "apkVersionCode": 1,
+  "apkVersionName": "1.0.0",
+  "apkUrl": "https://raw.githubusercontent.com/0WahTanG0/grafik-smen/main/grafik-smen.apk",
+  "webBuild": 1,
+  "webVersion": "1.0.0",
+  "webUrl": "https://raw.githubusercontent.com/0WahTanG0/grafik-smen/main/index.html",
+  "notes": "Первая версия приложения."
+}

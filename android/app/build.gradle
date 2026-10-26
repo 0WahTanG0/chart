@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+def appVersion = new Properties()
+appVersion.load(rootProject.file('version.properties').newInputStream())
+def signing = new Properties()
+def signingFile = rootProject.file('keystore/keystore.properties')
+if (signingFile.exists()) signing.load(signingFile.newInputStream())
+
+android {
+    namespace 'app.grafiksmen'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'app.grafiksmen'
+        minSdk 29
+        targetSdk 35
+        versionCode appVersion.versionCode as int
+        versionName appVersion.versionName
+        buildConfigField 'String', 'UPDATE_URL', '"https://raw.githubusercontent.com/0WahTanG0/grafik-smen/main/version.json"'
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        release {
+            if (signingFile.exists()) {
+                storeFile rootProject.file('keystore/' + signing.storeFile)
+                storePassword signing.storePassword
+                keyAlias signing.keyAlias
+                keyPassword signing.keyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

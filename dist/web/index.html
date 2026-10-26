@@ -1,0 +1,1032 @@
+<title>График смен</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Unbounded:wght@600&display=swap">
+<style>
+/* Layout: sticky top bar with two tabs; setup is a column of four panels, the schedule is a full-width table with a pinned name column. */
+:root {
+  --bg: #eceff4; --surface: #ffffff; --surface-2: #f5f7fa; --fg: #151a23; --muted: #5a6374;
+  --line: #d6dbe4; --accent: #2a55c9; --accent-fg: #ffffff; --danger: #c3352b; --ok: #1d8048; --warn: #a76300;
+  --font: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --display: "Unbounded", "Golos Text", system-ui, sans-serif;
+  --radius: 12px;
+  --lock-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 4.5V3.2a3 3 0 0 1 6 0v1.3h.5v5h-7v-5zm1.3 0h3.4V3.2a1.7 1.7 0 0 0-3.4 0z'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1117; --surface: #171b23; --surface-2: #1e232d; --fg: #e7eaf0; --muted: #98a1b2;
+  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1117; --surface: #171b23; --surface-2: #1e232d; --fg: #e7eaf0; --muted: #98a1b2;
+  --line: #2b313d; --accent: #7397ff; --accent-fg: #0e1117; --danger: #ff6f63; --ok: #4fc77f; --warn: #f0a640; color-scheme: dark }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--display); font-size: 17px; letter-spacing: .01em; }
+.brand small { display: block; font-family: var(--font); font-size: 12px; color: var(--muted); letter-spacing: 0; }
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; max-width: 100%; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; font-weight: 500; white-space: nowrap; flex: 1; }
+.seg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 3px rgb(0 0 0 / .14); color: var(--accent); }
+main { padding-block: 16px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: 1200px; margin: 0 auto; display: grid; gap: 16px; }
+#setup { max-width: 640px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.panel > * { min-width: 0; }
+.panel h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.panel h2.sub { padding-top: 8px; border-top: 1px solid var(--line); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 40px; flex-wrap: wrap; }
+.row + .row { border-top: 1px solid var(--line); padding-top: 10px; }
+.row small { color: var(--muted); font-size: 12px; }
+select, input[type="text"], input[type="number"] { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.stepper output { min-width: 56px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stepper button { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); font-size: 18px; line-height: 1; }
+.stepper button:disabled { opacity: .4; cursor: default; }
+.schema { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.schema .stepper output { min-width: 28px; font-size: 18px; }
+.schema > b { font-size: 20px; color: var(--muted); }
+.times { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.times select { width: 86px; font-variant-numeric: tabular-nums; padding: 7px 6px; font-weight: 600; }
+.num { display: inline-flex; align-items: center; gap: 6px; flex: none; font-weight: 600; }
+.num input { width: 84px; text-align: center; font-weight: 600; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 9px 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; font-weight: 600; padding: 14px; font-size: 16px; }
+.btn.danger { color: var(--danger); }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.note { color: var(--muted); font-size: 13px; margin: 0; }
+.period { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.period select { flex: 1; min-width: 150px; font-weight: 600; }
+.people { display: grid; gap: 8px; }
+.person { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.person b { display: block; font-weight: 600; }
+.person small { color: var(--muted); font-size: 13px; }
+.person::after { content: "›"; font-size: 22px; color: var(--muted); line-height: 1; }
+.addform { display: flex; gap: 6px; }
+.addform input { flex: 1; width: 0; }
+.status h1 { margin: 0; font-size: 17px; font-weight: 600; text-wrap: balance; }
+.status h1.ok { color: var(--ok); }
+.status p { margin: 0; }
+.status h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.status ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; max-height: 180px; overflow: auto; font-size: 14px; }
+.status .seg { display: flex; flex-wrap: wrap; }
+.status-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.banner { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--warn) 13%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+.banner ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.strict { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 14px; }
+.strict > span { color: var(--muted); }
+.strict label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.strict input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.tablewrap { overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); -webkit-overflow-scrolling: touch; }
+table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+.sched th, .sched td { padding: 0; border-bottom: 1px solid var(--line); text-align: center; }
+.sched thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); min-width: 46px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.day-btn { border: 0; background: transparent; width: 46px; min-height: 48px; display: grid; place-content: center; line-height: 1.15; color: inherit; padding: 2px 0; }
+.day-btn b { font-size: 14px; color: var(--fg); }
+.day-btn small { font-size: 9px; font-weight: 700; color: var(--accent); }
+.sched thead th.we, .sched thead th.we b { color: var(--danger); }
+.sched th.name { position: sticky; left: 0; z-index: 1; background: var(--surface); text-align: left; padding: 4px 10px; min-width: 128px; max-width: 128px; border-right: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.sched thead th.corner { left: 0; z-index: 3; text-align: left; padding: 4px 10px; border-right: 1px solid var(--line); color: var(--fg); font-weight: 600; }
+.sched th.name .nm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dir { font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+.hrs { display: inline-block; margin-top: 2px; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: var(--muted); background: var(--surface-2); }
+.hrs.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.cell { position: relative; width: 42px; height: 42px; margin: 2px; border: 0; border-radius: 8px; display: grid; place-content: center; line-height: 1.05;
+  background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--fg); transition: background .35s, color .35s; }
+.cell b { font-size: 13px; font-weight: 700; }
+.cell.on b { font-size: 11px; letter-spacing: -.02em; }
+.cell i { font-style: normal; font-size: 9px; opacity: .85; }
+.cell.on { background: var(--c); color: #fff; }
+.cell.locked::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; background: currentColor;
+  -webkit-mask: var(--lock-icon) center/contain no-repeat; mask: var(--lock-icon) center/contain no-repeat; }
+.cell.changed { outline: 2px dashed var(--warn); outline-offset: 1px; }
+.cell.flash { animation: flash 1.1s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); transform: scale(1.08); } 100% { box-shadow: 0 0 0 0 transparent; transform: none; } }
+.tot { display: grid; place-content: center; width: 42px; height: 40px; margin: 2px; border-radius: 8px; font-weight: 700; line-height: 1.05; }
+.tot b { font-size: 14px; }
+.tot small { font-size: 10px; font-weight: 600; opacity: .8; }
+.tot sup { font-size: 8px; color: var(--accent); margin-left: 1px; }
+.tot.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.tot.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.sched tfoot th, .sched tfoot td { border-bottom: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+.legend .sw::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--c); margin-right: 6px; vertical-align: -1px; }
+.legend .lk::before { content: ""; display: inline-block; width: 10px; height: 10px; background: currentColor; margin-right: 6px; vertical-align: -1px;
+  -webkit-mask: var(--lock-icon) center/contain no-repeat; mask: var(--lock-icon) center/contain no-repeat; }
+.legend .ch::before { content: ""; display: inline-block; width: 9px; height: 9px; border: 2px dashed var(--warn); border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.sheet-wrap { position: fixed; inset: 0; z-index: 20; background: rgb(8 10 15 / .45); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { background: var(--surface); width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; border-radius: 18px 18px 0 0;
+  padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; animation: up .22s ease-out; }
+.sheet > * { min-width: 0; }
+@keyframes up { from { transform: translateY(30px); opacity: .6; } }
+.sheet header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.sheet header h3 { margin: 0; font-size: 17px; font-weight: 600; min-width: 0; line-height: 1.25; }
+.sheet header h3 small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.sheet h4 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.box { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 10px; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.modes button, .kinds button { border: 2px solid transparent; border-radius: 10px; padding: 9px 6px; font-weight: 600; font-size: 14px;
+  background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--fg); }
+.modes button[aria-pressed="true"], .kinds button[aria-pressed="true"] { background: var(--c); color: #fff; border-color: var(--c); }
+.kinds { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.kinds button { font-size: 12px; padding: 7px 2px; line-height: 1.2; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal .wd { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; }
+.cal button { height: 44px; border: 0; border-radius: 9px; background: var(--surface-2); font-variant-numeric: tabular-nums; display: grid; place-content: center; line-height: 1.1; padding: 0; }
+.cal button small { font-size: 9px; font-weight: 600; }
+.cal button.we { color: var(--danger); }
+.cal button[data-s] { background: var(--c); color: #fff; font-weight: 700; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.opts button { border: 2px solid transparent; border-radius: 10px; padding: 10px; text-align: left; font-weight: 600; line-height: 1.25;
+  background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--fg); }
+.opts button small { font-weight: 500; color: var(--muted); }
+.opts button[aria-pressed="true"] { border-color: var(--c); background: color-mix(in srgb, var(--c) 28%, transparent); }
+.shot { width: 100%; border-radius: 8px; border: 1px solid var(--line); background: #fff; -webkit-touch-callout: default; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; background: var(--fg); color: var(--bg);
+  padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="brand">График смен<small id="period-label"></small></div>
+  <nav class="seg" aria-label="Разделы">
+    <button id="tab-setup" data-act="tab" data-tab="setup">Настройка</button>
+    <button id="tab-grid" data-act="tab" data-tab="grid">График</button>
+  </nav>
+</header>
+<main id="setup"></main>
+<main id="grid" hidden></main>
+<div id="sheet" class="sheet-wrap" hidden><div class="sheet" id="sheet-body" role="dialog" aria-modal="true"></div></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ---------- Данные ---------- */
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const COLORS = { long: '#2f6be0', early: '#0e8a80', late: '#6a4fd8', own: '#c2417a', any: '#55607a', work: '#2f6be0', off: '#7d8595', vacation: '#e2851a' };
+const SHIFT_NAMES = { long: 'Полная', early: 'Короткая, день', late: 'Короткая, вечер' };
+const CODE = ['off', 'long', 'early', 'late', 'own'];
+const VAL = { off: 0, long: 1, early: 2, late: 3, own: 4 };
+const isWorkCode = c => !!c && c !== 'off' && c !== 'vacation';
+const daysIn = (y, m) => new Date(y, m, 0).getDate();
+const wdIndex = (y, m, d) => (new Date(y, m - 1, d).getDay() + 6) % 7;
+const fmtH = h => Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',');
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const range = n => [...Array(n).keys()];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const hm = t => { const [h, m] = t.split(':'); return String(+h) + (m === '00' ? '' : ':' + m); };
+const spanHours = (s, e) => { let d = toMin(e) - toMin(s); if (d <= 0) d += 1440; return d / 60; };
+const ymKey = (y, m) => `${y}-${String(m).padStart(2, '0')}`;
+const needFor = (ctx, day) => ctx.dayNeed[day] || { long: ctx.needLong, short: ctx.needShort };
+const dateTitle = (ctx, d) => `${d} ${MONTHS_GEN[ctx.month - 1]}, ${WD[wdIndex(ctx.year, ctx.month, d)].toLowerCase()}`;
+const shiftOf = (ctx, code, p) => code === 'own' ? { start: p.start, end: p.end } : ctx.shifts[code];
+const codeHours = (ctx, code, p) => spanHours(shiftOf(ctx, code, p).start, shiftOf(ctx, code, p).end);
+const codeLabel = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${hm(s.start)}–${hm(s.end)}`; };
+const codeTime = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${s.start}–${s.end}`; };
+
+// Версия и сборка: 'artifact' — страница на claude.ai, 'web' — itch.io, браузер и приложение Android (сборщик подставляет сам).
+const APP_VERSION = '1.0.0', WEB_BUILD = 1, BUILD_TARGET = 'web';
+const inApp = () => !!window.AndroidApp;
+function emptyDefaults() {
+  const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+  return { year: next.getFullYear(), month: next.getMonth() + 1, staff: [], directors: [], marks: {} };
+}
+const defaults = () => typeof personalDefaults === 'function' ? personalDefaults() : emptyDefaults();
+
+// Сколько дней человек может отработать по своей схеме с учётом отметок.
+function maxWorkable(ctx, p) {
+  const m = ctx.marks[p.id] || {};
+  let run = 0, off = Infinity, days = 0;
+  for (let d = 1; d <= daysIn(ctx.year, ctx.month); d++) {
+    const c = m[d], can = isWorkCode(c) || (c !== 'off' && c !== 'vacation' && run < p.workDays && (run > 0 || off >= p.offDays));
+    if (can) { run++; off = 0; days++; } else { off = run > 0 ? 1 : off + 1; run = 0; }
+  }
+  return days;
+}
+// Норма часов: нужные часы делятся между сотрудниками по свободным дням, не меньше отмеченных смен и не больше лимита.
+function computeNorms(ctx) {
+  const D = daysIn(ctx.year, ctx.month), hL = codeHours(ctx, 'long'), hS = (codeHours(ctx, 'early') + codeHours(ctx, 'late')) / 2, cap = ctx.maxHours;
+  let total = 0;
+  for (let d = 1; d <= D; d++) { const n = needFor(ctx, d); total += n.long * hL + n.short * hS; }
+  const info = p => {
+    const m = ctx.marks[p.id] || {};
+    let open = 0, fixed = 0;
+    for (let d = 1; d <= D; d++) {
+      const c = m[d];
+      if (c === 'off' || c === 'vacation') continue;
+      open++;
+      if (isWorkCode(c)) fixed += c === 'any' ? hS : codeHours(ctx, c, p);
+    }
+    return { open, fixed, max: Math.max(fixed, maxWorkable(ctx, p) * hL) };
+  };
+  const norms = {};
+  let rest = total, pool = ctx.people.filter(p => !p.director);
+  for (let changed = true; changed && pool.length;) {
+    changed = false;
+    const sum = pool.reduce((s, p) => s + info(p).open, 0) || 1;
+    for (const p of pool) {
+      const i = info(p), share = rest * i.open / sum, lo = Math.min(cap, i.fixed), hi = Math.min(cap, i.max);
+      const v = share < lo ? lo : share > hi ? hi : null;
+      if (v != null) { norms[p.id] = v; rest -= v; pool = pool.filter(x => x !== p); changed = true; break; }
+    }
+  }
+  const sum = pool.reduce((s, p) => s + info(p).open, 0) || 1;
+  for (const p of pool) norms[p.id] = Math.max(0, rest * info(p).open / sum);
+  for (const p of ctx.people) if (p.director) norms[p.id] = Math.min(cap, maxWorkable(ctx, p) * codeHours(ctx, 'own', p));
+  return norms;
+}
+
+/* ---------- Алгоритм ---------- */
+// Значение клетки: 0 — не работает, 1 — полная, 2 — короткая днём, 3 — короткая вечером, 4 — директор в своё время (не в счёт смены).
+const W0 = { short: 80, over: 40, split: 5, hour: 2, cap: 50, cons: 40, gap: 40, single: 25, mark: 0, ban: 0, dirUse: 1e6, change: 0 };
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(arr, r) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+class Board {
+  // opt.mode: 'hard' — отметки неизменны; 'soft' — выходные и рабочие дни из календаря можно менять за штраф (отпуск — никогда).
+  constructor(ctx, src, opt) {
+    const P = ctx.people, norms = computeNorms(ctx), w = opt.w;
+    this.ctx = ctx; this.w = w; this.D = daysIn(ctx.year, ctx.month); this.E = P.length; this.base = null; this.ban = opt.ban || new Set();
+    // Галочки: нарушений правила не может стать больше, чем было (allow — сколько уже было у дня или человека).
+    this.strict = opt.strict || {}; this.allow = opt.allow || { days: {}, cap: {}, schema: {} };
+    this.norm = P.map(p => norms[p.id]);
+    this.dir = P.map(p => p.director);
+    this.W = P.map(p => p.workDays); this.Y = P.map(p => p.offDays);
+    this.H = [0, codeHours(ctx, 'long'), codeHours(ctx, 'early'), codeHours(ctx, 'late')];
+    this.own = P.map(p => p.director ? codeHours(ctx, 'own', p) : 0);
+    this.allowed = P.map(p => p.director ? (w.dirUse < 1e5 ? [0, 4, 1, 2, 3] : [0, 4]) : [0, 1, 2, 3]);
+    this.need = range(this.D).map(d => needFor(ctx, d + 1));
+    this.dirDays = opt.dirDays || null;
+    this.k = []; this.lock = []; this.must = []; this.soft = []; this.vac = []; this.mk = []; this.fixedSrc = [];
+    P.forEach((p, e) => {
+      for (const a of [this.k, this.lock, this.must, this.soft, this.vac, this.mk, this.fixedSrc]) a.push([]);
+      for (let d = 0; d < this.D; d++) {
+        const day = d + 1, mk = ctx.marks[p.id]?.[day] || null, fixedV = opt.fixed?.[p.id]?.[day], prev = src?.grid[p.id]?.[day];
+        let v = opt.keep && prev ? VAL[prev.code] ?? 0 : 0, lock = false, must = false, soft = null, fromFixed = false;
+        if (mk === 'vacation') { lock = true; v = 0; }
+        else if (fixedV !== undefined) { lock = true; v = fixedV; fromFixed = true; }
+        else if (mk && opt.mode === 'soft') { soft = mk; v = mk === 'any' ? (v >= 1 && v <= 3 ? v : 2) : VAL[mk]; }
+        else if (mk === 'any') { must = true; if (!(v >= 1 && v <= 3)) v = 2; }
+        else if (mk) { lock = true; v = VAL[mk]; }
+        if (!lock && !this.can(e, d, v)) v = 0;
+        this.k[e][d] = v; this.lock[e][d] = lock; this.must[e][d] = must; this.soft[e][d] = soft;
+        this.vac[e][d] = mk === 'vacation'; this.mk[e][d] = mk; this.fixedSrc[e][d] = fromFixed;
+      }
+    });
+  }
+  // Директора в смену можно ставить только в разрешённые дни (dirDays), если они заданы.
+  can(e, d, v) { return this.allowed[e].includes(v) && !(this.dir[e] && v >= 1 && v <= 3 && this.dirDays && !this.dirDays.has(d)); }
+  hrs(e, v) { return v === 4 ? this.own[e] : this.H[v]; }
+  markDiff(e, d) { const mk = this.mk[e][d], v = this.k[e][d]; return !!mk && mk !== 'vacation' && (mk === 'any' ? v === 0 : v !== VAL[mk]); }
+  run(e, d) { let c = 1, i = d - 1, j = d + 1; while (i >= 0 && this.k[e][i]) { c++; i--; } while (j < this.D && this.k[e][j]) { c++; j++; } return c; }
+  gapOk(e, d) {
+    if (d > 0 && this.k[e][d - 1]) return true;
+    let g = 0, i = d - 1;
+    while (i >= 0 && !this.k[e][i]) { g++; i--; }
+    return i < 0 || g >= this.Y[e];
+  }
+  groups(d) { let L = 0, Ea = 0, Ta = 0; for (let e = 0; e < this.E; e++) { const v = this.k[e][d]; if (v === 1) L++; else if (v === 2) Ea++; else if (v === 3) Ta++; } return [L, Ea, Ta]; }
+  empCost(e) {
+    const w = this.w, W = this.W[e], Y = this.Y[e], row = this.k[e];
+    let tot = 0, run = 0, runStart = 0, free = false, over = 0, gap = 0, singles = 0, mk = 0, du = 0, ch = 0, off = -1;
+    for (let d = 0; d <= this.D; d++) {
+      const v = d < this.D ? row[d] : 0;
+      if (d < this.D) {
+        if (v) tot += this.hrs(e, v);
+        if (this.soft[e][d] !== null && this.markDiff(e, d)) mk += this.ban.has(e * 64 + d) ? w.ban : w.mark;
+        if (this.dir[e] && v >= 1 && v <= 3 && !this.lock[e][d]) du++;
+        if (this.base && this.base[e][d] !== v) ch++;
+      }
+      if (v) {
+        if (run === 0) { runStart = d; if (off >= 0 && off < Y) gap += Y - off; }
+        run++;
+        if (!this.lock[e][d] && !this.must[e][d]) free = true;
+      } else {
+        if (run > 0) {
+          if (run > W) over += run - W;
+          if (run === 1 && free && W > 1 && runStart > 0 && d < this.D) singles++;
+          run = 0; free = false; off = 0;
+        }
+        if (off >= 0) off++;
+      }
+    }
+    const capOver = Math.max(0, tot - this.ctx.maxHours), sc = over + gap;
+    return Math.abs(tot - this.norm[e]) * w.hour + this.limited(this.strict.hours, capOver, this.allow.cap[e], w.cap)
+      + this.limited(this.strict.schema, sc, this.allow.schema[e], w.cons) + singles * w.single + mk + du * w.dirUse + ch * w.change;
+  }
+  limited(on, amount, allowed = 0, weight) {
+    return on ? Math.max(0, amount - allowed) * 5000 + Math.min(amount, allowed) * weight : amount * weight;
+  }
+  dayCost(d) {
+    const [L, Ea, Ta] = this.groups(d), n = this.need[d], Sh = Ea + Ta, w = this.w;
+    return this.limited(this.strict.staff, Math.max(0, n.long - L) + Math.max(0, n.short - Sh), this.allow.days[d], w.short) + (Math.max(0, L - n.long) + Math.max(0, Sh - n.short)) * w.over
+      + Math.max(0, Math.abs(Ea - Ta) - 1) * w.split;
+  }
+  total() { let s = 0; for (let e = 0; e < this.E; e++) s += this.empCost(e); for (let d = 0; d < this.D; d++) s += this.dayCost(d); return s; }
+  clone() { const b = Object.create(Board.prototype); Object.assign(b, this); b.k = this.k.map(r => r.slice()); return b; }
+  greedy(r, cov) {
+    const budget = range(this.E).map(e => this.norm[e] - range(this.D).reduce((s, d) => s + (this.k[e][d] ? this.hrs(e, this.k[e][d]) : 0), 0));
+    const tie = range(this.E).map(() => r());
+    const ok = (e, d) => this.run(e, d) <= this.W[e] && this.gapOk(e, d);
+    for (let d = 0; d < this.D; d++) {
+      let [L, Ea, Ta] = this.groups(d);
+      const cand = () => range(this.E).filter(e => !this.dir[e] && !this.lock[e][d] && !this.must[e][d] && this.soft[e][d] === null && !this.k[e][d])
+        .sort((a, b) => budget[b] - budget[a] || tie[a] - tie[b]);
+      for (const e of cand()) {
+        if (L >= this.need[d].long) break;
+        if (!cov && (!ok(e, d) || budget[e] < this.H[1] / 2)) continue;
+        this.k[e][d] = 1; budget[e] -= this.H[1]; L++;
+      }
+      for (const e of cand()) {
+        if (Ea + Ta >= this.need[d].short) break;
+        const v = Ea <= Ta ? 2 : 3;
+        if (!cov && (!ok(e, d) || budget[e] < this.H[v] / 2)) continue;
+        this.k[e][d] = v; budget[e] -= this.H[v]; v === 2 ? Ea++ : Ta++;
+      }
+    }
+    for (const e of range(this.E).filter(e => this.dir[e])) for (let d = 0; d < this.D; d++) {
+      if (budget[e] < this.own[e] / 2) break;
+      if (this.lock[e][d] || this.soft[e][d] !== null || this.k[e][d] || !ok(e, d)) continue;
+      this.k[e][d] = 4; budget[e] -= this.own[e];
+    }
+  }
+  perturb(r, flips) {
+    const cells = [];
+    for (let e = 0; e < this.E; e++) for (let d = 0; d < this.D; d++) if (!this.lock[e][d]) cells.push([e, d]);
+    for (const [e, d] of shuffle(cells, r).slice(0, flips)) {
+      const o = this.allowed[e].filter(v => (v || !this.must[e][d]) && this.can(e, d, v));
+      this.k[e][d] = o[Math.floor(r() * o.length)];
+    }
+  }
+  optimize(r, maxPasses = 40) {
+    const eps = 1e-9, k = this.k;
+    for (let pass = 0; pass < maxPasses; pass++) {
+      let improved = false;
+      const eo = shuffle(range(this.E), r), dO = shuffle(range(this.D), r);
+      for (const e of eo) for (const d of dO) {
+        if (this.lock[e][d]) continue;
+        const cur = k[e][d];
+        let best = -1, bestCost = this.empCost(e) + this.dayCost(d) - eps;
+        for (const v of this.allowed[e]) {
+          if (v === cur || (v === 0 && this.must[e][d]) || !this.can(e, d, v)) continue;
+          k[e][d] = v;
+          const c = this.empCost(e) + this.dayCost(d);
+          if (c < bestCost) { bestCost = c; best = v; }
+        }
+        k[e][d] = best >= 0 ? best : cur;
+        if (best >= 0) improved = true;
+      }
+      for (const d of dO) for (const a of eo) {
+        const v = k[a][d];
+        if (this.lock[a][d] || this.must[a][d] || !v) continue;
+        for (const b of eo) {
+          if (b === a || this.lock[b][d] || k[b][d] || !this.can(b, d, v)) continue;
+          const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
+          k[a][d] = 0; k[b][d] = v;
+          if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
+          k[b][d] = 0; k[a][d] = v;
+        }
+      }
+      for (const d of dO) for (const a of eo) {
+        const va = k[a][d];
+        if (this.lock[a][d] || !va) continue;
+        for (const b of eo) {
+          const vb = k[b][d];
+          if (b === a || this.lock[b][d] || !vb || vb === va || !this.can(a, d, vb) || !this.can(b, d, va)) continue;
+          const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
+          k[a][d] = vb; k[b][d] = va;
+          if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
+          k[a][d] = va; k[b][d] = vb;
+        }
+      }
+      for (const e of eo) for (const d1 of dO) {
+        const v = k[e][d1];
+        if (this.lock[e][d1] || this.must[e][d1] || !v) continue;
+        for (const d2 of dO) {
+          if (d2 === d1 || this.lock[e][d2] || k[e][d2] || !this.can(e, d2, v)) continue;
+          const before = this.empCost(e) + this.dayCost(d1) + this.dayCost(d2);
+          k[e][d1] = 0; k[e][d2] = v;
+          if (this.empCost(e) + this.dayCost(d1) + this.dayCost(d2) < before - eps) { improved = true; break; }
+          k[e][d2] = 0; k[e][d1] = v;
+        }
+      }
+      if (!improved) break;
+    }
+  }
+  toCandidate(title, id) {
+    const ctx = this.ctx, D = this.D, grid = {}, fixed = {}, changes = [], viol = [];
+    ctx.people.forEach((p, e) => {
+      const row = {};
+      let tot = 0, run = 0, runStart = 0, off = -1, offStart = 0;
+      for (let d = 0; d <= D; d++) {
+        const v = d < D ? this.k[e][d] : 0;
+        if (d < D) {
+          const mk = this.mk[e][d], code = v ? CODE[v] : this.vac[e][d] ? 'vacation' : 'off', hours = v ? this.hrs(e, v) : 0;
+          const markChanged = this.markDiff(e, d);
+          const dirUsed = this.dir[e] && v >= 1 && v <= 3 && !['long', 'early', 'late'].includes(mk);
+          const changed = markChanged || dirUsed;
+          tot += hours;
+          row[d + 1] = { code, hours, mark: mk, changed, counts: v >= 1 && v <= 3 };
+          if (changed) {
+            (fixed[p.id] ||= {})[d + 1] = v;
+            changes.push(markChanged ? { t: 'chg', id: p.id, day: d + 1, from: mk, to: code } : { t: 'dir', id: p.id, day: d + 1, to: code });
+          }
+        }
+        if (v) {
+          if (run === 0) { runStart = d; if (off >= 0 && off < this.Y[e]) viol.push({ t: 'gap', id: p.id, day: offStart + 1, len: off, need: this.Y[e] }); }
+          run++;
+        } else {
+          if (run > 0) {
+            if (run > this.W[e]) viol.push({ t: 'cons', id: p.id, day: runStart + 1, len: run, max: this.W[e] });
+            run = 0; off = 0; offStart = d;
+          }
+          if (off >= 0) off++;
+        }
+      }
+      grid[p.id] = row;
+      if (tot > ctx.maxHours + 0.01) viol.push({ t: 'cap', id: p.id, hours: tot });
+    });
+    for (let d = 0; d < D; d++) {
+      const [L, Ea, Ta] = this.groups(d), n = this.need[d];
+      const dir = range(this.E).some(e => this.dir[e] && this.k[e][d] === 4);
+      if (L < n.long) viol.push({ t: 'short', day: d + 1, g: 'long', have: L, need: n.long, dir });
+      if (Ea + Ta < n.short) viol.push({ t: 'short', day: d + 1, g: 'short', have: Ea + Ta, need: n.short, dir });
+    }
+    return { id, title, grid, fixed, changes, viol };
+  }
+}
+
+function allowanceOf(c, ctx, withDays) {
+  const idx = Object.fromEntries(ctx.people.map((p, i) => [p.id, i])), allow = { days: {}, cap: {}, schema: {} }, add = (o, k, v) => { o[k] = (o[k] || 0) + v; };
+  for (const v of c.viol) {
+    if (v.t === 'short') { if (withDays) add(allow.days, v.day - 1, v.need - v.have); }
+    else if (v.t === 'cap') add(allow.cap, idx[v.id], v.hours - ctx.maxHours);
+    else add(allow.schema, idx[v.id], v.t === 'cons' ? v.len - v.max : v.need - v.len);
+  }
+  return allow;
+}
+const dirsExist = ctx => ctx.people.some(p => p.director);
+const severity = c => c.viol.reduce((s, v) => s + (v.t === 'short' ? (v.need - v.have) * 3 : 1), 0);
+const sameGrid = (a, b) => Object.keys(a.grid).every(id => Object.keys(a.grid[id]).every(d => a.grid[id][d].code === b.grid[id]?.[d]?.code));
+function solve(ctx, opt, seed, cov) {
+  const r = mulberry32(seed), b = new Board(ctx, null, opt);
+  b.greedy(r, cov); b.optimize(r);
+  let best = b, bestCost = b.total();
+  for (let i = 0; i < 6; i++) {
+    const t = best.clone();
+    t.perturb(r, Math.max(4, b.E)); t.optimize(r);
+    const c = t.total();
+    if (c < bestCost - 1e-9) { best = t; bestCost = c; }
+  }
+  return best.toCandidate('', uid());
+}
+function generateSchedules(ctx) {
+  const base = solve(ctx, { mode: 'hard', w: W0 }, 1, false);
+  if (!base.viol.length) return [{ ...base, title: 'Все условия соблюдены' }];
+  // Компромиссы: закрыть смены, не создавая новых нарушений схемы и лимита часов.
+  const allow = allowanceOf(base, ctx, false), strict = { staff: true, hours: true, schema: true };
+  const fewest = cs => cs.sort((a, b) => severity(a) - severity(b) || a.changes.length - b.changes.length)[0];
+  const shortDays = c => new Set(c.viol.filter(v => v.t === 'short').map(v => v.day - 1));
+  const withDirector = c => improve(c, ctx, { mode: 'hard', w: { ...W0, dirUse: 100, change: 3 }, fixed: c.fixed, strict, allow, dirDays: shortDays(c) });
+  let v1 = fewest([7, 21].map(seed => solve(ctx, { mode: 'soft', w: { ...W0, mark: 150 }, strict, allow }, seed, true)));
+  if (shortDays(v1).size && dirsExist(ctx)) { const d = withDirector(v1); if (severity(d) < severity(v1)) v1 = d; }
+  const tries = [
+    { ...v1, id: uid(), desc: v1.changes.some(c => c.t === 'dir') ? 'Меняем чьи-то выходные или рабочие дни, директор встаёт в смену' : 'Меняем чьи-то выходные или рабочие дни' },
+    { ...withDirector(base), id: uid(), desc: 'Директор встаёт в смену там, где не хватает людей' },
+    { ...solve(ctx, { mode: 'hard', w: { ...W0, short: 1000 } }, 13, true), desc: 'Отметки не меняем, но у некоторых больше рабочих дней подряд' }
+  ];
+  const res = [];
+  for (const c of tries) if (severity(c) < severity(base) && ![...res, base].some(x => sameGrid(x, c))) res.push(c);
+  res.forEach((c, i) => { c.title = `Вариант ${i + 1}`; });
+  base.title = 'Без изменений'; base.desc = 'Все отметки как в календарях';
+  return [...res, base];
+}
+function rebalanceSchedule(cand, ctx, strict) {
+  return improve(cand, ctx, { mode: 'hard', w: { ...W0, change: 3 }, fixed: cand.fixed, strict, allow: allowanceOf(cand, ctx, true) });
+}
+// Подстройка от готового графика: как можно меньше перестановок (вес change).
+function improve(cand, ctx, opt) {
+  const r = mulberry32(42), b = new Board(ctx, cand, { ...opt, keep: true });
+  b.base = b.k.map(row => row.slice());
+  b.optimize(r);
+  let best = b, bestCost = b.total();
+  for (let i = 0; i < 2; i++) {
+    const t = best.clone();
+    t.perturb(r, 4); t.optimize(r);
+    const c = t.total();
+    if (c < bestCost - 1e-9) { best = t; bestCost = c; }
+  }
+  return best.toCandidate(cand.title, cand.id);
+}
+
+/* ---------- Состояние ---------- */
+const S = { shifts: { long: { start: '09:00', end: '22:00' }, early: { start: '12:00', end: '20:00' }, late: { start: '13:00', end: '21:00' } },
+  needLong: 3, needShort: 4, workDays: 3, offDays: 1, maxHours: 240, dayNeed: {}, strict: { hours: true, staff: true, schema: true },
+  cands: [], sel: 0, gctx: null, ver: 0, tab: 'setup', sheet: null, flash: new Set(), img: null, warn: null };
+Object.assign(S, defaults());
+// Ключ хранения не меняется между версиями: обновление приложения не стирает данные.
+const KEY = 'grafik-smen:data', LEGACY_KEYS = ['shift-planner-v5'], DATA_VERSION = 1;
+const SAVE_KEYS = ['year', 'month', 'shifts', 'needLong', 'needShort', 'workDays', 'offDays', 'maxHours', 'staff', 'directors', 'marks', 'dayNeed', 'strict'];
+function exportData() { return { app: 'grafik-smen', v: DATA_VERSION, saved: new Date().toISOString(), ...Object.fromEntries(SAVE_KEYS.map(k => [k, S[k]])) }; }
+// Принимает данные любой прошлой версии и дополняет недостающее значениями по умолчанию.
+function applyData(data) {
+  if (!data || !Array.isArray(data.staff)) return false;
+  if (typeof personalMigrate === 'function') personalMigrate(data);
+  for (const k of SAVE_KEYS) if (data[k] !== undefined) S[k] = data[k];
+  S.directors = (S.directors || []).map(p => ({ start: '10:00', end: '19:00', workDays: 5, offDays: 2, ...p }));
+  S.strict = { hours: true, staff: true, schema: true, ...S.strict };
+  S.marks ||= {}; S.dayNeed ||= {};
+  return true;
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(exportData())); } catch (e) {} }
+try {
+  for (const k of [KEY, ...LEGACY_KEYS]) if (applyData(JSON.parse(localStorage.getItem(k) || 'null'))) { if (k !== KEY) save(); break; }
+} catch (e) {}
+const ym = () => ymKey(S.year, S.month);
+const monthMarks = () => (S.marks[ym()] ||= {});
+const monthNeed = () => (S.dayNeed[ym()] ||= {});
+const people = () => [...S.staff.map(p => ({ ...p, director: false, workDays: S.workDays, offDays: S.offDays })), ...S.directors.map(p => ({ ...p, director: true }))];
+const setupKey = () => JSON.stringify([S.year, S.month, S.shifts, S.needLong, S.needShort, S.workDays, S.offDays, S.maxHours,
+  S.staff.map(p => p.id), S.directors.map(p => [p.id, p.start, p.end, p.workDays, p.offDays]), monthMarks(), monthNeed()]);
+const makeCtx = () => structuredClone({ key: setupKey(), year: S.year, month: S.month, shifts: S.shifts, needLong: S.needLong, needShort: S.needShort,
+  maxHours: S.maxHours, people: people(), marks: monthMarks(), dayNeed: monthNeed() });
+const findPerson = id => S.staff.find(p => p.id === id) || S.directors.find(p => p.id === id);
+const nameOf = id => findPerson(id)?.name ?? S.gctx?.people.find(p => p.id === id)?.name ?? '';
+const $ = s => document.querySelector(s);
+
+function cur() {
+  const c = S.cands[S.sel];
+  if (c && c.ver !== S.ver) S.cands[S.sel] = { ...rebalanceSchedule(c, S.gctx, S.strict), ver: S.ver };
+  return S.cands[S.sel] || null;
+}
+function toast(text) {
+  const t = $('#toast'); t.textContent = text; t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+function openGrid(force) {
+  S.tab = 'grid'; S.warn = null; renderTabs();
+  if (force || !S.gctx || S.gctx.key !== setupKey()) {
+    $('#grid').innerHTML = '<div class="panel empty">Составляю график…</div>';
+    setTimeout(() => {
+      S.gctx = makeCtx();
+      S.cands = generateSchedules(S.gctx).map(c => ({ ...c, ver: S.ver }));
+      S.sel = 0; renderGrid(); window.scrollTo(0, 0);
+    }, 30);
+  } else renderGrid();
+}
+// Ручная правка в графике: меняет отметку или потребность дня и подстраивает остальное с учётом галочек.
+function gridEdit(mutate, cell) {
+  const snap = structuredClone({ marks: monthMarks(), dayNeed: monthNeed(), cands: S.cands, sel: S.sel, gctx: S.gctx, ver: S.ver });
+  if (cell) for (const c of S.cands) delete c.fixed?.[cell.id]?.[cell.day];
+  const before = structuredClone(S.cands[S.sel]);
+  mutate();
+  S.gctx.marks = structuredClone(monthMarks()); S.gctx.dayNeed = structuredClone(monthNeed()); S.gctx.key = setupKey();
+  S.ver++;
+  const after = { ...rebalanceSchedule(before, S.gctx, S.strict), ver: S.ver };
+  S.cands[S.sel] = after;
+  const cats = [...(S.strict.staff ? ['short'] : []), ...(S.strict.hours ? ['cap'] : []), ...(S.strict.schema ? ['cons', 'gap'] : [])];
+  const same = (a, b) => a.t === b.t && a.id === b.id && a.day === b.day && a.g === b.g;
+  const fresh = after.viol.filter(v => cats.includes(v.t) && !snap.cands[snap.sel].viol.some(b => same(b, v)));
+  S.warn = fresh.length ? { snap, items: fresh } : null;
+  S.flash = new Set();
+  for (const id in after.grid) for (const d in after.grid[id]) {
+    const a = after.grid[id][d], b = snap.cands[snap.sel].grid[id]?.[d];
+    if (!b || a.code !== b.code || a.counts !== b.counts) S.flash.add(id + ':' + d);
+  }
+  save(); renderGrid(); S.flash = new Set();
+  if (S.sheet) renderSheet();
+}
+function undoEdit() {
+  const s = S.warn.snap;
+  S.marks[ym()] = s.marks; S.dayNeed[ym()] = s.dayNeed; S.cands = s.cands; S.sel = s.sel; S.gctx = s.gctx; S.ver = s.ver + 1;
+  S.cands.forEach(c => { c.ver = S.ver; });
+  S.warn = null; save(); renderGrid(); toast('Правка отменена');
+}
+function setMark(id, day, code) {
+  const m = monthMarks();
+  if (code) (m[id] ||= {})[day] = code;
+  else if (m[id]) { delete m[id][day]; if (!Object.keys(m[id]).length) delete m[id]; }
+}
+
+/* ---------- Настройка ---------- */
+const stepper = (act, label, minus = true, plus = true) =>
+  `<span class="stepper"><button data-act="${act}" data-v="-1" aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label}</output><button data-act="${act}" data-v="1" aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
+const schemaCtl = (wAct, oAct, W, Y) => `<span class="schema">${stepper(wAct, W, W > 1, W < 14)}<b>/</b>${stepper(oAct, Y, Y > 1, Y < 7)}</span>`;
+const TIMES = range(48).map(i => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
+const timeSelect = (id, value, label) => `<select id="${id}" aria-label="${label}">${(TIMES.includes(value) ? TIMES : [...TIMES, value].sort()).map(t => `<option ${t === value ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+const timeInputs = (idBase, s) => `<span class="times">${timeSelect(idBase + '-start', s.start, 'Начало')}–${timeSelect(idBase + '-end', s.end, 'Конец')}</span>`;
+function personSummary(p, director) {
+  const m = monthMarks()[p.id] || {}, cnt = { vacation: 0, off: 0, work: 0 };
+  for (const c of Object.values(m)) cnt[c === 'vacation' || c === 'off' ? c : 'work']++;
+  const parts = [];
+  if (director) parts.push(`${hm(p.start)}–${hm(p.end)}, ${p.workDays}/${p.offDays}`);
+  if (cnt.vacation) parts.push(`отпуск ${cnt.vacation} дн.`);
+  if (cnt.off) parts.push(`выходных ${cnt.off}`);
+  if (cnt.work) parts.push(`рабочих ${cnt.work}`);
+  return parts.join(' · ') || 'даты не отмечены';
+}
+const personBtn = (p, director) => `<button class="person" data-act="person" data-id="${p.id}"><span><b>${esc(p.name || 'Без имени')}</b><small>${esc(personSummary(p, director))}</small></span></button>`;
+
+function renderSetup() {
+  const total = S.needLong + S.needShort;
+  $('#setup').innerHTML = `
+  <section class="panel"><h2>Месяц</h2>
+    <div class="period"><select id="month" aria-label="Месяц">${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.month ? 'selected' : ''}>${m}</option>`).join('')}</select>${stepper('year', S.year)}</div>
+  </section>
+  <section class="panel"><h2>Смены</h2>
+    <div class="row"><span>Полная смена</span>${timeInputs('t-long', S.shifts.long)}</div>
+    <div class="row"><span>Людей на полную смену</span>${stepper('need-long', S.needLong + ' чел.', S.needLong > 0, S.needLong < 30)}</div>
+    <div class="row"><span>Короткая смена — день</span>${timeInputs('t-early', S.shifts.early)}</div>
+    <div class="row"><span>Короткая смена — вечер</span>${timeInputs('t-late', S.shifts.late)}</div>
+    <div class="row"><span>Людей на короткие смены<br><small>день и вечер вместе</small></span>${stepper('need-short', S.needShort + ' чел.', S.needShort > 0, S.needShort < 30)}</div>
+    <p class="note">В смене ${total} ${plural(total, 'человек', 'человека', 'человек')}, директор — сверх этого. Другое количество на конкретный день можно задать в графике: нажмите на дату.</p>
+  </section>
+  <section class="panel"><h2>Правила</h2>
+    <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>${schemaCtl('work-days', 'off-days', S.workDays, S.offDays)}</div>
+    <div class="row"><span>Макс. часов в месяц</span><span class="num"><input type="number" id="max-hours" value="${S.maxHours}" min="1" max="744" inputmode="numeric" aria-label="Максимум часов в месяц"> ч</span></div>
+    <p class="note">Схема ${S.workDays}/${S.offDays}: не больше ${S.workDays} ${plural(S.workDays, 'рабочего дня', 'рабочих дней', 'рабочих дней')} подряд, потом минимум ${S.offDays} ${plural(S.offDays, 'выходной', 'выходных', 'выходных')}.</p>
+  </section>
+  <section class="panel"><h2>Сотрудники · ${S.staff.length}</h2>
+    <div class="people">${S.staff.map(p => personBtn(p, false)).join('')}</div>
+    <form class="addform" id="add-staff" autocomplete="off"><input type="text" id="new-staff" placeholder="Имя сотрудника" aria-label="Имя сотрудника"><button class="btn" type="submit">Добавить</button></form>
+    <h2 class="sub">Директор</h2>
+    <div class="people">${S.directors.map(p => personBtn(p, true)).join('')}</div>
+    <form class="addform" id="add-dir" autocomplete="off"><input type="text" id="new-dir" placeholder="Имя директора" aria-label="Имя директора"><button class="btn" type="submit">Добавить</button></form>
+    <p class="note">Нажмите на имя, чтобы отметить отпуск, выходные и рабочие дни.</p>
+  </section>
+  <button class="btn primary" data-act="generate" ${S.staff.length ? '' : 'disabled'}>Создать график</button>
+  <div class="foot"><button class="btn" data-act="backup">Резервная копия</button>${inApp() ? '<button class="btn" data-act="check-update">Проверить обновления</button>' : ''}
+    <span class="note">Версия ${APP_VERSION}${inApp() ? ` · приложение ${esc(window.AndroidApp.version())}` : ''}</span></div>`;
+}
+
+/* ---------- График ---------- */
+const codeWord = (ctx, code, p) => code === 'off' ? 'выходной' : code === 'vacation' ? 'отпуск' : code === 'any' ? 'рабочий день' : `смена ${codeLabel(ctx, code, p)}`;
+function changeText(c, ctx) {
+  const p = ctx.people.find(x => x.id === c.id), when = `${c.day} ${MONTHS_GEN[ctx.month - 1]}`;
+  if (c.t === 'dir') return `${nameOf(c.id)} (директор), ${when}: встаёт в смену ${codeLabel(ctx, c.to, p)} вместо сотрудника`;
+  if (c.from === 'off') return p.director && c.to !== 'own' ? `${nameOf(c.id)} (директор), ${when}: встаёт в смену ${codeLabel(ctx, c.to, p)} вместо выходного`
+    : `${nameOf(c.id)}, ${when}: работает ${codeLabel(ctx, c.to, p)} вместо выходного`;
+  if (c.to === 'off') return `${nameOf(c.id)}, ${when}: выходной вместо рабочего дня`;
+  return `${nameOf(c.id)}, ${when}: ${codeWord(ctx, c.to, p)} вместо «${codeWord(ctx, c.from, p)}»`;
+}
+function violText(v, ctx) {
+  const mg = MONTHS_GEN[ctx.month - 1];
+  if (v.t === 'short') return `${v.day} ${mg}: на ${v.g === 'long' ? 'полной смене' : 'коротких сменах'} ${v.have} из ${v.need}${v.dir ? ' — можно поставить директора' : ''}`;
+  if (v.t === 'cap') return `${nameOf(v.id)}: ${fmtH(v.hours)} ч — больше ${ctx.maxHours} ч`;
+  if (v.t === 'cons') return `${nameOf(v.id)}: ${v.len} ${plural(v.len, 'рабочий день', 'рабочих дня', 'рабочих дней')} подряд с ${v.day} ${mg} (можно ${v.max})`;
+  return `${nameOf(v.id)}: только ${v.len} ${plural(v.len, 'выходной', 'выходных', 'выходных')} с ${v.day} ${mg} (нужно ${v.need})`;
+}
+
+function renderGrid() {
+  if (S.tab !== 'grid') return;
+  const el = $('#grid'), ctx = S.gctx, c = ctx && cur();
+  if (!c) { el.innerHTML = '<div class="panel empty">Графика пока нет. Нажмите «Создать график» на вкладке «Настройка».</div>'; return; }
+  const wrapOld = el.querySelector('.tablewrap'), scroll = wrapOld ? [wrapOld.scrollLeft, wrapOld.scrollTop] : null;
+  const D = daysIn(ctx.year, ctx.month), days = range(D).map(i => i + 1), dirs = ctx.people.filter(p => p.director);
+  const multi = S.cands.length > 1;
+  const cell = (p, d) => {
+    const a = c.grid[p.id]?.[d] || { code: 'off' }, on = isWorkCode(a.code);
+    const sub = !on ? '' : p.director && a.code !== 'own' ? 'дир.' : fmtH(a.hours) + 'ч';
+    return `<td><button class="cell ${on ? 'on' : ''} ${a.mark ? 'locked' : ''} ${a.changed ? 'changed' : ''} ${S.flash.has(p.id + ':' + d) ? 'flash' : ''}" style="--c:${COLORS[a.code]}"
+      data-act="cell" data-id="${p.id}" data-d="${d}" aria-label="${esc(nameOf(p.id))}, ${dateTitle(ctx, d)}: ${on ? codeTime(ctx, a.code, p) : codeWord(ctx, a.code)}${a.mark ? ', отмечено' : ''}">
+      <b>${on ? codeLabel(ctx, a.code, p) : a.code === 'vacation' ? 'Отп' : 'В'}</b>${on ? `<i>${sub}</i>` : ''}</button></td>`;
+  };
+  el.innerHTML = `
+  <section class="panel status">
+    <div class="status-head">${multi ? '<h1>Все условия соблюсти не получилось</h1>' : c.viol.length ? '<h1>Есть нарушения</h1>' : '<h1 class="ok">Все условия соблюдены</h1>'}
+      <button class="btn" data-act="image">В общий чат (Картинка)</button></div>
+    ${multi ? `<p class="note">Выберите вариант. В вариантах можно поменять чей-то выходной или рабочий день; отпуск не меняется.</p>
+      <div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">${esc(x.title)}</button>`).join('')}</div>
+      <p><b>${esc(c.title)}:</b> ${esc(c.desc || '')}</p>` : ''}
+    ${c.changes.length ? `<h3>Что меняется</h3><ul>${c.changes.map(x => `<li>${esc(changeText(x, ctx))}</li>`).join('')}</ul>` : ''}
+    ${c.viol.length ? `<h3>Не соблюдено</h3><ul>${c.viol.map(x => `<li>${esc(violText(x, ctx))}</li>`).join('')}</ul>` : multi ? '<p class="note ok-text" style="color:var(--ok)">С этими изменениями все условия соблюдены.</p>' : ''}
+  </section>
+  ${S.warn ? `<div class="banner"><b>Подстроить график, не нарушив отмеченные правила, не получилось:</b>
+    <ul>${S.warn.items.map(x => `<li>${esc(violText(x, ctx))}</li>`).join('')}</ul>
+    <div class="btns"><button class="btn" data-act="undo">Отменить правку</button><button class="btn" data-act="keep">Оставить</button></div></div>` : ''}
+  <div class="strict"><span>При ручной правке не нарушать:</span>
+    <label><input type="checkbox" id="st-hours" ${S.strict.hours ? 'checked' : ''}> макс. часов</label>
+    <label><input type="checkbox" id="st-staff" ${S.strict.staff ? 'checked' : ''}> людей в смене</label>
+    <label><input type="checkbox" id="st-schema" ${S.strict.schema ? 'checked' : ''}> рабочих дней подряд</label></div>
+  <div class="tablewrap"><table class="sched">
+    <thead><tr><th class="corner">Сотрудник<br><span style="font-weight:500;color:var(--muted)">часы за месяц</span></th>
+      ${days.map(d => { const n = ctx.dayNeed[d], wd = wdIndex(ctx.year, ctx.month, d);
+        return `<th class="${wd >= 5 ? 'we' : ''}"><button class="day-btn" data-act="day-need" data-d="${d}" aria-label="${dateTitle(ctx, d)}: сколько людей нужно"><b>${d}</b>${WD[wd]}${n ? `<small>${n.long + n.short} чел.</small>` : ''}</button></th>`; }).join('')}</tr></thead>
+    <tbody>${ctx.people.map(p => {
+      const f = Object.values(c.grid[p.id] || {}).reduce((s, a) => s + a.hours, 0);
+      return `<tr><th class="name"><span class="nm">${esc(nameOf(p.id))}</span>${p.director ? '<span class="dir">дир.</span> ' : ''}<span class="hrs ${f > ctx.maxHours ? 'bad' : ''}">${fmtH(f)} ч</span></th>${days.map(d => cell(p, d)).join('')}</tr>`;
+    }).join('')}</tbody>
+    <tfoot><tr><th class="name">На смене<br><span style="font-weight:500;color:var(--muted)">полная · короткие</span></th>${days.map(d => {
+      let L = 0, Sh = 0, extra = false;
+      for (const p of ctx.people) { const a = c.grid[p.id][d]; if (a.counts) a.code === 'long' ? L++ : Sh++; else if (a.code === 'own') extra = true; }
+      const n = needFor(ctx, d);
+      return `<td><span class="tot ${L < n.long || Sh < n.short ? 'bad' : 'ok'}"><b>${L + Sh}${extra ? '<sup>+Д</sup>' : ''}</b><small>${L}·${Sh}</small></span></td>`;
+    }).join('')}</tr></tfoot>
+  </table></div>
+  <div class="legend">${['long', 'early', 'late'].map(k => `<span class="sw" style="--c:${COLORS[k]}">${codeLabel(ctx, k)} — ${SHIFT_NAMES[k].toLowerCase()}</span>`).join('')}
+    ${dirs.map(p => `<span class="sw" style="--c:${COLORS.own}">${codeLabel(ctx, 'own', p)} — ${esc(nameOf(p.id))}, директор</span>`).join('')}
+    <span class="sw" style="--c:${COLORS.off}">В — выходной</span><span class="sw" style="--c:${COLORS.vacation}">Отп — отпуск</span>
+    <span class="lk">отмечено в календаре</span>${multi ? '<span class="ch">изменено в этом варианте</span>' : ''}${dirs.length ? '<span>«+Д» — директор на работе сверх смены</span>' : ''}</div>
+  <p class="note">Нажмите на клетку, чтобы поменять смену, — график подстроится. Нажмите на дату, чтобы задать, сколько людей нужно в этот день.</p>`;
+  const wrap = el.querySelector('.tablewrap');
+  if (scroll) { wrap.scrollLeft = scroll[0]; wrap.scrollTop = scroll[1]; }
+}
+
+/* ---------- Нижние панели ---------- */
+function renderSheet() {
+  const box = $('#sheet'), body = $('#sheet-body'), sh = S.sheet;
+  box.hidden = !sh;
+  if (!sh) return;
+  const close = '<button class="btn" data-act="close">Готово</button>';
+  if (sh.type === 'person') {
+    const p = findPerson(sh.id), director = S.directors.includes(p);
+    if (!p) { S.sheet = null; box.hidden = true; return; }
+    const ctx = { shifts: S.shifts }, m = monthMarks()[p.id] || {};
+    const D = daysIn(S.year, S.month), lead = wdIndex(S.year, S.month, 1);
+    const workColor = director ? COLORS.own : COLORS[sh.kind];
+    const modes = [['vacation', 'Отпуск', COLORS.vacation], ['off', 'Выходной', COLORS.off], ['work', 'Рабочий день', workColor]];
+    const kinds = [['long', 'Полная'], ['early', 'День'], ['late', 'Вечер'], ['any', 'Любая']];
+    const sub = c => c === 'vacation' ? 'отп' : c === 'off' ? 'вых' : c === 'any' ? 'любая' : codeLabel(ctx, c, p);
+    body.innerHTML = `<header><h3>${director ? 'Директор' : 'Сотрудник'}</h3>${close}</header>
+      <input type="text" id="p-name" value="${esc(p.name)}" placeholder="Имя" aria-label="Имя" autocomplete="off">
+      ${director ? `<div class="row"><span>Время работы</span>${timeInputs('d-time', p)}</div>
+        <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>${schemaCtl('d-work', 'd-off', p.workDays, p.offDays)}</div>
+        <p class="note">Директор не входит в число людей на смене. Если людей не хватает, его можно поставить в смену прямо в графике.</p>` : ''}
+      <div class="box"><h4>Календарь — ${MONTHS[S.month - 1]} ${S.year}</h4>
+        <div class="modes">${modes.map(([v, t, col]) => `<button data-act="mode" data-m="${v}" style="--c:${col}" aria-pressed="${sh.mode === v}">${t}</button>`).join('')}</div>
+        ${sh.mode === 'work' && !director ? `<div class="kinds">${kinds.map(([k, t]) => `<button data-act="kind" data-k="${k}" style="--c:${COLORS[k]}" aria-pressed="${sh.kind === k}">${t}<br>${k === 'any' ? 'решит график' : codeLabel(ctx, k)}</button>`).join('')}</div>` : ''}
+        <div class="cal">${WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(lead)}
+          ${range(D).map(i => { const d = i + 1, c = m[d], we = wdIndex(S.year, S.month, d) >= 5;
+            return `<button data-act="day" data-d="${d}" class="${we ? 'we' : ''}" ${c ? `data-s="${c}" style="--c:${COLORS[c]}"` : ''} aria-label="${d}: ${c ? sub(c) : 'не отмечено'}">${d}${c ? `<small>${sub(c)}</small>` : ''}</button>`; }).join('')}</div>
+        <p class="note">Выберите, что отмечать, и нажимайте на даты. Повторное нажатие снимает отметку. Неотмеченные дни заполнит программа.</p>
+      </div>
+      <button class="btn danger" data-act="del-person">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : director ? 'Удалить директора' : 'Удалить сотрудника'}</button>`;
+    $('#p-name').addEventListener('input', ev => { p.name = ev.target.value; save(); renderSetup(); });
+  } else if (sh.type === 'cell') {
+    const ctx = S.gctx, c = cur(), p = ctx.people.find(x => x.id === sh.id), a = c.grid[sh.id][sh.day], mark = ctx.marks[sh.id]?.[sh.day];
+    const opt = (v, t, s, col) => `<button data-act="set-mark" data-s="${v}" style="--c:${col}" aria-pressed="${a.code === v}">${t}${s ? `<br><small>${s}</small>` : ''}</button>`;
+    const shifts = ['long', 'early', 'late'].map(k => opt(k, SHIFT_NAMES[k], codeTime(ctx, k), COLORS[k])).join('');
+    body.innerHTML = `<header><h3>${esc(nameOf(sh.id))}<br><small>${dateTitle(ctx, sh.day)}</small></h3>${close}</header>
+      ${p.director ? `<div class="opts">${opt('own', 'Рабочий день', codeTime(ctx, 'own', p), COLORS.own)}${opt('off', 'Выходной', '', COLORS.off)}${opt('vacation', 'Отпуск', '', COLORS.vacation)}</div>
+        <h4>Поставить в смену вместо сотрудника</h4><div class="opts">${shifts}</div>`
+      : `<div class="opts">${shifts}${opt('off', 'Выходной', '', COLORS.off)}${opt('vacation', 'Отпуск', '', COLORS.vacation)}</div>`}
+      ${mark ? '<button class="btn" data-act="unmark">Убрать отметку — день выберет программа</button>' : ''}
+      <p class="note">После правки график подстроится. Правила с галочками над графиком не нарушаются.</p>`;
+  } else if (sh.type === 'day') {
+    const ctx = S.gctx, n = needFor(ctx, sh.day), custom = !!ctx.dayNeed[sh.day];
+    body.innerHTML = `<header><h3>Сколько людей нужно<br><small>${dateTitle(ctx, sh.day)}</small></h3>${close}</header>
+      <div class="row"><span>Полная смена<br><small>${codeTime(ctx, 'long')}</small></span>${stepper('dn-long', n.long + ' чел.', n.long > 0, n.long < 30)}</div>
+      <div class="row"><span>Короткие смены<br><small>${codeTime(ctx, 'early')}, ${codeTime(ctx, 'late')}</small></span>${stepper('dn-short', n.short + ' чел.', n.short > 0, n.short < 30)}</div>
+      <p class="note">Всего ${n.long + n.short} чел. ${custom ? `Обычно — ${ctx.needLong + ctx.needShort}.` : 'Как в настройках.'}</p>
+      ${custom ? '<button class="btn" data-act="dn-reset">Вернуть как обычно</button>' : ''}`;
+  } else if (sh.type === 'image') {
+    body.innerHTML = `<header><h3>Картинка графика</h3>${close}</header>
+      <img class="shot" src="${S.img.url}" alt="График смен, ${esc(S.img.title)}">
+      ${inApp() ? `<div class="btns"><button class="btn primary" data-act="share">Поделиться</button><button class="btn" data-act="save-img">Сохранить в галерею</button><button class="btn" data-act="print">Печать</button></div>
+        <p class="note">«Поделиться» — отправить в Telegram, WhatsApp или другой мессенджер.</p>`
+      : BUILD_TARGET === 'web' ? `<div class="btns">${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}<button class="btn" data-act="save-img">Скачать картинку</button><button class="btn" data-act="print">Печать</button></div>`
+      : `<p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати: «Поделиться» → «Напечатать».</p>
+        ${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}`}`;
+  } else if (sh.type === 'backup') {
+    const text = JSON.stringify(exportData());
+    body.innerHTML = `<header><h3>Резервная копия</h3>${close}</header>
+      <p class="note">Копия хранит всё: сотрудников, календари и настройки. Сохраните её перед переходом на другое устройство или в другую версию приложения.</p>
+      <div class="btns">${BUILD_TARGET === 'web' ? '<button class="btn primary" data-act="backup-file">Сохранить файл</button>' : ''}<button class="btn" data-act="backup-copy">Скопировать текст</button></div>
+      <textarea id="backup-text" readonly rows="4" aria-label="Данные копии">${esc(text)}</textarea>
+      <h4>Восстановить из копии</h4>
+      <div class="btns"><label class="btn">Выбрать файл<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain" hidden></label></div>
+      <textarea id="restore-text" rows="4" placeholder="Или вставьте сюда скопированный текст" aria-label="Текст копии для восстановления"></textarea>
+      <button class="btn danger" data-act="restore">${sh.confirm ? 'Текущие данные заменятся. Нажмите ещё раз' : 'Восстановить'}</button>`;
+    if (sh.pending) $('#restore-text').value = sh.pending;
+    $('#restore-text').addEventListener('input', ev => { sh.pending = ev.target.value; sh.confirm = false; });
+    $('#restore-file').addEventListener('change', async ev => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      sh.pending = await f.text(); sh.confirm = false; renderSheet(); toast('Файл загружен — нажмите «Восстановить»');
+    });
+  }
+}
+
+/* ---------- Картинка (canvas, масштаб 3) ---------- */
+function drawSchedule(c, ctx) {
+  const D = daysIn(ctx.year, ctx.month), E = ctx.people.length;
+  const nameW = 160, cellW = 44, rowH = 34, totW = 80, pad = 28, titleH = 52;
+  const W = pad * 2 + nameW + D * cellW + totW, tableH = rowH * (E + 2), H = pad + titleH + tableH + 40 + pad;
+  const scale = Math.min(3, Math.sqrt(16e6 / (W * H)));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
+  const g = cv.getContext('2d'), font = (wt, px) => `${wt} ${px}px "Golos Text", system-ui, sans-serif`;
+  g.scale(scale, scale);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.textBaseline = 'middle';
+  g.fillStyle = '#111'; g.font = font(700, 24); g.textAlign = 'left';
+  g.fillText(`График смен — ${MONTHS[ctx.month - 1]} ${ctx.year}`, pad, pad + 16);
+  const y0 = pad + titleH;
+  const box = (x, y, w, fill, text, color = '#111', wt = 500, align = 'center', px = 12) => {
+    if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, rowH); }
+    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = .5; g.strokeRect(x, y, w, rowH);
+    g.fillStyle = color; g.font = font(wt, px); g.textAlign = align;
+    g.fillText(text, align === 'left' ? x + 8 : x + w / 2, y + rowH / 2);
+  };
+  const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
+  const xDay = d => pad + nameW + (d - 1) * cellW, xTot = pad + nameW + D * cellW;
+  box(pad, y0, nameW, null, 'Сотрудник', '#111', 700, 'left');
+  for (let d = 1; d <= D; d++) {
+    const wd = wdIndex(ctx.year, ctx.month, d), we = wd >= 5;
+    box(xDay(d), y0, cellW, we ? '#fdeceb' : null, '');
+    g.textAlign = 'center'; g.fillStyle = we ? '#c3352b' : '#111';
+    g.font = font(700, 12); g.fillText(String(d), xDay(d) + cellW / 2, y0 + 12);
+    g.font = font(400, 9); g.fillText(WD[wd], xDay(d) + cellW / 2, y0 + 25);
+  }
+  box(xTot, y0, totW, null, 'Часы', '#111', 700);
+  ctx.people.forEach((p, i) => {
+    const y = y0 + rowH * (i + 1);
+    let f = 0;
+    box(pad, y, nameW, null, nameOf(p.id) + (p.director ? ' (дир.)' : ''), '#111', 600, 'left');
+    for (let d = 1; d <= D; d++) {
+      const a = c.grid[p.id][d], on = isWorkCode(a.code);
+      f += a.hours;
+      box(xDay(d), y, cellW, tint(COLORS[a.code], on ? .9 : .22), on ? codeLabel(ctx, a.code, p) : a.code === 'vacation' ? 'Отп' : 'В', on ? '#fff' : '#222', on ? 700 : 500, 'center', on ? 11 : 12);
+    }
+    box(xTot, y, totW, f > ctx.maxHours ? '#fbdcd9' : null, `${fmtH(f)} ч`, '#111', 700);
+  });
+  const yT = y0 + rowH * (E + 1);
+  box(pad, yT, nameW, null, 'На смене', '#111', 700, 'left');
+  for (let d = 1; d <= D; d++) {
+    let L = 0, Sh = 0;
+    for (const p of ctx.people) { const a = c.grid[p.id][d]; if (a.counts) a.code === 'long' ? L++ : Sh++; }
+    const n = needFor(ctx, d);
+    box(xDay(d), yT, cellW, L < n.long || Sh < n.short ? '#fbdcd9' : null, String(L + Sh), '#111', 700);
+  }
+  box(xTot, yT, totW, null, '');
+  g.lineWidth = 1.2; g.strokeStyle = 'rgba(0,0,0,.6)'; g.strokeRect(pad, y0, W - pad * 2, tableH);
+  let x = pad; const yL = y0 + tableH + 24;
+  g.font = font(400, 12); g.textAlign = 'left';
+  const legend = [...['long', 'early', 'late'].map(k => [COLORS[k], .9, `${codeTime(ctx, k)} — ${SHIFT_NAMES[k].toLowerCase()}`]),
+    ...ctx.people.filter(p => p.director).map(p => [COLORS.own, .9, `${codeTime(ctx, 'own', p)} — ${nameOf(p.id)}, директор`]),
+    [COLORS.off, .35, 'В — выходной'], [COLORS.vacation, .35, 'Отп — отпуск']];
+  for (const [col, al, t] of legend) {
+    g.fillStyle = tint(col, al); g.fillRect(x, yL - 7, 14, 14);
+    g.fillStyle = '#333'; g.fillText(t, x + 20, yL);
+    x += 20 + g.measureText(t).width + 22;
+  }
+  return cv;
+}
+async function makeImage() {
+  try { await document.fonts.ready; } catch (e) {}
+  const cv = drawSchedule(cur(), S.gctx);
+  S.img = { canvas: cv, url: cv.toDataURL('image/png'), title: `${MONTHS[S.gctx.month - 1]} ${S.gctx.year}` };
+  S.sheet = { type: 'image' }; renderSheet();
+}
+function shareImage() {
+  S.img.canvas.toBlob(async blob => {
+    try {
+      const file = new File([blob], `График ${S.img.title}.png`, { type: 'image/png' });
+      if (!navigator.canShare({ files: [file] })) throw new Error('unsupported');
+      await navigator.share({ files: [file], title: 'График смен' });
+    } catch (e) {
+      if (e?.name !== 'AbortError') toast('Удерживайте картинку, чтобы сохранить или отправить её');
+    }
+  }, 'image/png');
+}
+
+function downloadFile(name, url) {
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+}
+function printImage(url) {
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed;width:0;height:0;border:0;';
+  f.srcdoc = `<!doctype html><style>@page{size:landscape;margin:8mm}body{margin:0}img{width:100%}</style><img src="${url}">`;
+  f.onload = () => { try { f.contentWindow.print(); } catch (e) { toast('Печать недоступна — скачайте картинку и распечатайте её'); } setTimeout(() => f.remove(), 60000); };
+  document.body.append(f);
+}
+async function copyText(area) {
+  try { await navigator.clipboard.writeText(area.value); toast('Скопировано'); return; } catch (e) {}
+  area.removeAttribute('readonly'); area.select();
+  const ok = document.execCommand && document.execCommand('copy');
+  area.setAttribute('readonly', '');
+  toast(ok ? 'Скопировано' : 'Выделите текст и скопируйте его вручную');
+}
+
+/* ---------- События ---------- */
+function renderTabs() {
+  $('#setup').hidden = S.tab !== 'setup'; $('#grid').hidden = S.tab !== 'grid';
+  $('#tab-setup').setAttribute('aria-pressed', S.tab === 'setup'); $('#tab-grid').setAttribute('aria-pressed', S.tab === 'grid');
+  $('#period-label').textContent = `${MONTHS[S.month - 1]} ${S.year}`;
+}
+document.addEventListener('change', ev => {
+  const t = ev.target, id = t.id;
+  if (id === 'month') { S.month = +t.value; save(); renderTabs(); renderSetup(); return; }
+  if (id === 'max-hours') { S.maxHours = clamp(Math.round(+t.value || S.maxHours), 1, 744); save(); renderSetup(); return; }
+  const tm = id.match(/^t-(long|early|late)-(start|end)$/);
+  if (tm && t.value) { S.shifts[tm[1]][tm[2]] = t.value; save(); renderSetup(); return; }
+  const dm = id.match(/^d-time-(start|end)$/);
+  if (dm && t.value) { findPerson(S.sheet.id)[dm[1]] = t.value; save(); renderSetup(); renderSheet(); return; }
+  const sm = id.match(/^st-(hours|staff|schema)$/);
+  if (sm) { S.strict[sm[1]] = t.checked; save(); }
+});
+document.addEventListener('click', ev => {
+  if (ev.target.id === 'sheet') { S.sheet = null; renderSheet(); return; }
+  const b = ev.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  const v = +b.dataset.v || 0, sh = S.sheet;
+  const p = sh?.type === 'person' ? findPerson(sh.id) : null;
+  switch (b.dataset.act) {
+    case 'tab': if (b.dataset.tab === 'grid') openGrid(false); else { S.tab = 'setup'; renderTabs(); renderSetup(); } break;
+    case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); renderTabs(); renderSetup(); break;
+    case 'need-long': S.needLong = clamp(S.needLong + v, 0, 30); save(); renderSetup(); break;
+    case 'need-short': S.needShort = clamp(S.needShort + v, 0, 30); save(); renderSetup(); break;
+    case 'work-days': S.workDays = clamp(S.workDays + v, 1, 14); save(); renderSetup(); break;
+    case 'off-days': S.offDays = clamp(S.offDays + v, 1, 7); save(); renderSetup(); break;
+    case 'generate': openGrid(true); break;
+    case 'person': S.sheet = { type: 'person', id: b.dataset.id, mode: 'off', kind: 'long' }; renderSheet(); break;
+    case 'close': S.sheet = null; renderSheet(); break;
+    case 'd-work': p.workDays = clamp(p.workDays + v, 1, 14); save(); renderSetup(); renderSheet(); break;
+    case 'd-off': p.offDays = clamp(p.offDays + v, 1, 7); save(); renderSetup(); renderSheet(); break;
+    case 'mode': sh.mode = b.dataset.m; renderSheet(); break;
+    case 'kind': sh.kind = b.dataset.k; renderSheet(); break;
+    case 'day': {
+      const d = +b.dataset.d, code = sh.mode === 'work' ? (S.directors.includes(p) ? 'own' : sh.kind) : sh.mode;
+      setMark(p.id, d, monthMarks()[p.id]?.[d] === code ? null : code);
+      save(); renderSheet(); renderSetup(); break;
+    }
+    case 'del-person':
+      if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
+      S.staff = S.staff.filter(x => x.id !== sh.id); S.directors = S.directors.filter(x => x.id !== sh.id);
+      for (const k in S.marks) delete S.marks[k][sh.id];
+      S.sheet = null; save(); renderSheet(); renderSetup(); toast('Удалено'); break;
+    case 'variant': S.sel = +b.dataset.i; S.warn = null; renderGrid(); break;
+    case 'cell': S.sheet = { type: 'cell', id: b.dataset.id, day: +b.dataset.d }; renderSheet(); break;
+    case 'set-mark': case 'unmark': {
+      const code = b.dataset.act === 'unmark' ? null : b.dataset.s, cell = { id: sh.id, day: sh.day };
+      S.sheet = null; renderSheet();
+      gridEdit(() => setMark(cell.id, cell.day, code), cell); break;
+    }
+    case 'day-need': S.sheet = { type: 'day', day: +b.dataset.d }; renderSheet(); break;
+    case 'dn-long': case 'dn-short': case 'dn-reset': {
+      const n = { ...needFor(S.gctx, sh.day) }, day = sh.day;
+      if (b.dataset.act !== 'dn-reset') n[b.dataset.act === 'dn-long' ? 'long' : 'short'] = clamp(n[b.dataset.act === 'dn-long' ? 'long' : 'short'] + v, 0, 30);
+      gridEdit(() => {
+        const m = monthNeed();
+        if (b.dataset.act === 'dn-reset' || (n.long === S.needLong && n.short === S.needShort)) delete m[day]; else m[day] = n;
+      });
+      break;
+    }
+    case 'undo': undoEdit(); break;
+    case 'keep': S.warn = null; renderGrid(); break;
+    case 'image': makeImage(); break;
+    case 'share': if (inApp()) window.AndroidApp.shareImage(S.img.url); else shareImage(); break;
+    case 'save-img':
+      if (inApp()) window.AndroidApp.saveImage(S.img.url, `График ${S.img.title}.png`);
+      else S.img.canvas.toBlob(blob => downloadFile(`grafik-smen-${ymKey(S.gctx.year, S.gctx.month)}.png`, URL.createObjectURL(blob)), 'image/png');
+      break;
+    case 'print': if (inApp()) window.AndroidApp.printImage(S.img.url); else printImage(S.img.url); break;
+    case 'backup': S.sheet = { type: 'backup' }; renderSheet(); break;
+    case 'backup-copy': copyText($('#backup-text')); break;
+    case 'backup-file': {
+      const name = `grafik-smen-${new Date().toISOString().slice(0, 10)}.json`, text = $('#backup-text').value;
+      if (inApp()) window.AndroidApp.saveText(name, text);
+      else downloadFile(name, URL.createObjectURL(new Blob([text], { type: 'application/json' })));
+      break;
+    }
+    case 'restore': {
+      let data = null;
+      try { data = JSON.parse(sh.pending || ''); } catch (e) {}
+      if (!data || data.app !== 'grafik-smen' || !Array.isArray(data.staff)) { toast('Это не похоже на копию графика смен'); break; }
+      if (!sh.confirm) { sh.confirm = true; renderSheet(); break; }
+      applyData(data); save(); S.gctx = null; S.cands = []; S.sheet = null; S.tab = 'setup';
+      renderTabs(); renderSetup(); renderSheet(); toast('Данные восстановлены'); break;
+    }
+    case 'check-update': window.AndroidApp.checkUpdates(); break;
+  }
+});
+document.addEventListener('submit', ev => {
+  ev.preventDefault();
+  const dir = ev.target.id === 'add-dir', input = $(dir ? '#new-dir' : '#new-staff');
+  const list = dir ? S.directors : S.staff, name = input.value.trim() || (dir ? 'Директор' : `Сотрудник ${S.staff.length + 1}`);
+  list.push(dir ? { id: uid(), name, start: '10:00', end: '19:00', workDays: 5, offDays: 2 } : { id: uid(), name });
+  save(); renderSetup(); $(dir ? '#new-dir' : '#new-staff').focus(); toast(`${name} — добавлено`);
+});
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
+// Кнопка «Назад» на Android: закрыть окно, затем вернуться к настройке; false — выйти из приложения.
+window.appBack = () => {
+  if (S.sheet) { S.sheet = null; renderSheet(); return true; }
+  if (S.tab === 'grid') { S.tab = 'setup'; renderTabs(); renderSetup(); return true; }
+  return false;
+};
+
+renderTabs(); renderSetup();
+</script>
