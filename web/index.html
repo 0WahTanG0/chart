@@ -131,6 +131,19 @@ table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 30; background: var(--fg); color: var(--bg);
   padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
 .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+.cell b { font-size: 11px; letter-spacing: -.02em; }
+.cell:not(.on) b { font-size: 13px; letter-spacing: 0; }
+.tot { height: 40px; line-height: 1.05; }
+.tot b { font-size: 14px; }
+.tot small { font-size: 10px; font-weight: 600; opacity: .8; }
+.tot sup { font-size: 8px; color: var(--accent); margin-left: 1px; }
+.tot.over { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.fact.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 15%, transparent); }
+.times { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.times input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px; font-variant-numeric: tabular-nums; min-width: 0; width: 92px; }
+.warn-text { color: var(--warn); }
+.status-grid small { font-weight: 500; color: var(--muted); }
+.sched td { text-align: center; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 
@@ -151,9 +164,14 @@ table.sched { border-collapse: separate; border-spacing: 0; font-variant-numeric
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+const KINDS = {
+  long: { title: 'Длинная', color: '#2f6be0' },
+  early: { title: 'Короткая, утро', color: '#0e8a80' },
+  late: { title: 'Короткая, вечер', color: '#6a4fd8' }
+};
 const STATUS = {
-  work: { title: 'Смена', short: 'С', color: '#2f6be0' },
-  mandatory: { title: 'Обязательная смена', short: 'О', color: '#7a3dcf' },
+  work: { title: 'Смена', short: 'С' },
+  mandatory: { title: 'Обязательная смена', short: 'О' },
   vacation: { title: 'Отпуск', short: 'Отп', color: '#e2851a' },
   desiredOff: { title: 'Желаемый выходной', short: 'Жв', color: '#2a9459' },
   off: { title: 'Выходной', short: 'В', color: '#8b93a1' }
@@ -165,101 +183,137 @@ const fmtH = h => Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ',
 const signed = h => (h > 0 ? '+' : h < 0 ? '−' : '') + fmtH(Math.abs(h));
 const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const range = n => [...Array(n).keys()];
+const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
+const toMin = t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+const kindHours = (ctx, k) => { let d = toMin(ctx.shifts[k].end) - toMin(ctx.shifts[k].start); if (d <= 0) d += 1440; return d / 60; };
+const hm = t => { const [h, m] = t.split(':'); return String(+h) + (m === '00' ? '' : ':' + m); };
+const kindLabel = (ctx, k) => `${hm(ctx.shifts[k].start)}–${hm(ctx.shifts[k].end)}`;
+const kindTime = (ctx, k) => `${ctx.shifts[k].start}–${ctx.shifts[k].end}`;
+const cellColor = a => isWork(a.status) ? KINDS[a.kind || 'early'].color : STATUS[a.status].color;
 
 function samples() {
   return [
-    { name: 'Иванов А.', shift: 12, target: 144, vac: [], des: [6, 7], man: [1] },
-    { name: 'Петров С.', shift: 12, target: 144, vac: [], des: [14, 15, 21], man: [] },
-    { name: 'Сидорова Е.', shift: 12, target: 132, vac: [10, 11, 12, 13], des: [], man: [] },
-    { name: 'Кузнецов Д.', shift: 8, target: 160, vac: [], des: [1, 2], man: [15, 16] },
-    { name: 'Смирнова О.', shift: 12, target: 120, vac: [20, 21, 22], des: [28], man: [] },
-    { name: 'Орлова Н.', shift: 12, target: 144, vac: [], des: [], man: [], director: true }
-  ].map(e => ({ id: uid(), director: false, ...e }));
+    { name: 'Иванов А.', des: [6, 7], man: [1] },
+    { name: 'Петров С.', des: [14, 15] },
+    { name: 'Сидорова Е.', vac: [10, 11, 12, 13] },
+    { name: 'Кузнецов Д.', des: [1, 2] },
+    { name: 'Смирнова О.', vac: [20, 21, 22], des: [28] },
+    { name: 'Волков П.' },
+    { name: 'Зайцева М.', des: [8] },
+    { name: 'Морозов И.', vac: [3, 4, 5] },
+    { name: 'Соколова Т.', des: [24, 25] },
+    { name: 'Лебедев К.' },
+    { name: 'Новикова А.', des: [17] },
+    { name: 'Орлова Н.', director: true }
+  ].map(e => ({ id: uid(), target: null, vac: [], des: [], man: [], director: false, ...e }));
+}
+const defaultShifts = () => ({ long: { start: '09:00', end: '22:00' }, early: { start: '12:00', end: '20:00' }, late: { start: '13:00', end: '21:00' } });
+
+function computeNorms(ctx) {
+  const D = daysIn(ctx.year, ctx.month), cap = ctx.maxHours;
+  const total = D * (ctx.needLong * kindHours(ctx, 'long') + ctx.needShort * (kindHours(ctx, 'early') + kindHours(ctx, 'late')) / 2);
+  const staff = ctx.employees.filter(e => !e.director);
+  const avail = e => D - e.vac.filter(d => d <= D).length;
+  const autos = staff.filter(e => e.target == null);
+  const rest = total - staff.reduce((s, e) => s + (e.target ?? 0), 0);
+  const availSum = autos.reduce((s, e) => s + avail(e), 0) || 1;
+  const norms = {};
+  for (const e of staff) norms[e.id] = e.target ?? Math.max(0, Math.min(cap, Math.round(rest * avail(e) / availSum)));
+  const avg = staff.length ? Math.min(cap, Math.round(total / staff.length)) : cap;
+  for (const e of ctx.employees) if (e.director) norms[e.id] = e.target ?? avg;
+  return { norms, total, perPerson: staff.length ? total / staff.length : total };
 }
 const worked = (c, id) => Object.values(c.grid[id] || {}).reduce((s, a) => s + (isWork(a.status) ? a.hours : 0), 0);
-const staffOn = (c, day) => Object.values(c.grid).filter(r => r[day]?.counts).length;
+const groupsOn = (c, day) => { let L = 0, Sh = 0; for (const r of Object.values(c.grid)) if (r[day]?.counts) r[day].kind === 'long' ? L++ : Sh++; return [L, Sh]; };
 const dirExtra = (c, day) => Object.values(c.grid).some(r => r[day] && isWork(r[day].status) && !r[day].counts);
 const lockedCount = c => Object.values(c.grid).reduce((s, r) => s + Object.values(r).filter(a => a.locked).length, 0);
 
 /* ---------- Алгоритм ---------- */
-const W0 = { des: 100, short: 80, hour: 10, cons: 40, change: 0, bal: 0.5 };
+const W0 = { des: 100, short: 80, over: 40, hour: 10, hourAuto: 2, cap: 50, cons: 40, single: 25, change: 0 };
 function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function shuffle(arr, r) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
-const range = n => [...Array(n).keys()];
+const groupOf = kind => kind === 'long' ? 1 : 2;
 
 class Board {
-  constructor(ctx, source, keepUnlocked, w) {
+  constructor(ctx, source, keep, w) {
     this.ctx = ctx; this.w = w; this.D = daysIn(ctx.year, ctx.month); this.E = ctx.employees.length; this.base = null;
-    this.des = ctx.employees.map(e => new Set(e.des));
+    this.hL = kindHours(ctx, 'long'); this.hS = (kindHours(ctx, 'early') + kindHours(ctx, 'late')) / 2;
+    const { norms } = computeNorms(ctx);
+    this.norm = ctx.employees.map(e => norms[e.id]);
+    this.custom = ctx.employees.map(e => e.target != null);
     this.dir = ctx.employees.map(e => !!e.director);
-    this.st = []; this.hr = []; this.fx = []; this.lk = []; this.cnt = [];
+    this.des = ctx.employees.map(e => new Set(e.des));
+    this.k = []; this.fx = []; this.mand = []; this.lc = []; this.cnt = [];
     ctx.employees.forEach((emp, e) => {
-      this.st.push([]); this.hr.push([]); this.fx.push([]); this.lk.push([]); this.cnt.push([]);
       const vac = new Set(emp.vac), man = new Set(emp.man);
+      this.k.push([]); this.fx.push([]); this.mand.push([]); this.lc.push([]); this.cnt.push([]);
       for (let d = 0; d < this.D; d++) {
         const day = d + 1, prev = source?.grid[emp.id]?.[day];
-        this.fx[e][d] = this.lk[e][d] = this.cnt[e][d] = false;
-        if (prev && prev.locked) { this.st[e][d] = prev.status; this.hr[e][d] = prev.hours; this.fx[e][d] = this.lk[e][d] = true; this.cnt[e][d] = !!prev.dirMin && isWork(prev.status); }
-        else if (vac.has(day)) { this.st[e][d] = 'vacation'; this.hr[e][d] = 0; this.fx[e][d] = true; }
-        else if (man.has(day)) { this.st[e][d] = 'mandatory'; this.hr[e][d] = emp.shift; this.fx[e][d] = true; }
-        else this.setFree(e, d, keepUnlocked && !!prev && isWork(prev.status));
+        const kept = keep && prev && isWork(prev.status) ? groupOf(prev.kind) : 0;
+        let k = 0, fx = false, mand = false, lc = null, cnt = false;
+        if (prev?.locked) { fx = true; lc = prev; k = isWork(prev.status) ? groupOf(prev.kind) : 0; cnt = !!prev.dirMin && k > 0; }
+        else if (vac.has(day)) fx = true;
+        else if (man.has(day)) { mand = true; k = kept || 2; }
+        else k = kept;
+        this.k[e][d] = k; this.fx[e][d] = fx; this.mand[e][d] = mand; this.lc[e][d] = lc; this.cnt[e][d] = cnt;
       }
     });
   }
-  works(e, d) { return isWork(this.st[e][d]); }
-  setFree(e, d, on) { this.st[e][d] = on ? 'work' : (this.des[e].has(d + 1) ? 'desiredOff' : 'off'); this.hr[e][d] = on ? this.ctx.employees[e].shift : 0; this.cnt[e][d] = false; }
+  works(e, d) { return this.k[e][d] > 0; }
+  hours(e, d) { const lc = this.lc[e][d]; if (lc) return isWork(lc.status) ? lc.hours : 0; const v = this.k[e][d]; return v === 1 ? this.hL : v === 2 ? this.hS : 0; }
+  set(e, d, v) { this.k[e][d] = v; }
   counts(e, d) { return this.works(e, d) && (!this.dir[e] || this.cnt[e][d]); }
-  staff(d) { let c = 0; for (let e = 0; e < this.E; e++) if (this.counts(e, d)) c++; return c; }
+  groups(d) { let L = 0, Sh = 0; for (let e = 0; e < this.E; e++) if (this.counts(e, d)) this.k[e][d] === 1 ? L++ : Sh++; return [L, Sh]; }
   run(e, d) { let c = 1, i = d - 1, j = d + 1; while (i >= 0 && this.works(e, i)) { c++; i--; } while (j < this.D && this.works(e, j)) { c++; j++; } return c; }
   empCost(e) {
-    const emp = this.ctx.employees[e], w = this.w, mc = this.ctx.maxCons;
-    let tot = 0, run = 0, over = 0, des = 0, ch = 0;
+    const w = this.w, mc = this.ctx.maxCons;
+    let tot = 0, run = 0, over = 0, des = 0, ch = 0, singles = 0;
     for (let d = 0; d < this.D; d++) {
-      const wk = this.works(e, d);
-      if (wk) { tot += this.hr[e][d]; run++; if (run > mc) over++; if (this.des[e].has(d + 1)) des++; } else run = 0;
-      if (this.base && this.base[e][d] !== wk) ch++;
+      if (this.works(e, d)) { tot += this.hours(e, d); run++; if (run > mc) over++; if (this.des[e].has(d + 1)) des++; }
+      else { if (run === 1 && d - 1 > 0) singles++; run = 0; }
+      if (this.base && this.base[e][d] !== this.k[e][d]) ch++;
     }
-    return des * w.des + Math.abs(tot - emp.target) * w.hour + over * w.cons + ch * w.change;
+    return des * w.des + Math.abs(tot - this.norm[e]) * (this.custom[e] ? w.hour : w.hourAuto)
+      + Math.max(0, tot - this.ctx.maxHours) * w.cap + over * w.cons + singles * w.single + ch * w.change;
   }
-  dayCost(d) { const c = this.staff(d); return Math.max(0, this.ctx.minStaff - c) * this.w.short + c * c * this.w.bal; }
+  dayCost(d) {
+    const [L, Sh] = this.groups(d), nL = this.ctx.needLong, nS = this.ctx.needShort;
+    return (Math.max(0, nL - L) + Math.max(0, nS - Sh)) * this.w.short + (Math.max(0, L - nL) + Math.max(0, Sh - nS)) * this.w.over;
+  }
   total() { let s = 0; for (let e = 0; e < this.E; e++) s += this.empCost(e); for (let d = 0; d < this.D; d++) s += this.dayCost(d); return s; }
-  clone() { const b = Object.create(Board.prototype); Object.assign(b, this); b.st = this.st.map(r => r.slice()); b.hr = this.hr.map(r => r.slice()); b.cnt = this.cnt.map(r => r.slice()); return b; }
+  clone() { const b = Object.create(Board.prototype); Object.assign(b, this); b.k = this.k.map(r => r.slice()); return b; }
   greedy(r, cov) {
-    const es = this.ctx.employees, { minStaff, maxCons } = this.ctx;
-    const need = es.map((emp, e) => {
-      let fixedHours = 0;
-      for (let d = 0; d < this.D; d++) if (this.fx[e][d] && this.works(e, d)) fixedHours += this.hr[e][d];
-      return Math.max(0, Math.round((emp.target - fixedHours) / Math.max(emp.shift, 1)));
-    });
-    const tie = es.map(() => r());
+    const mc = this.ctx.maxCons;
+    const budget = range(this.E).map(e => this.norm[e] - range(this.D).reduce((s, d) => s + (this.fx[e][d] || this.mand[e][d] ? this.hours(e, d) : 0), 0));
+    const tie = range(this.E).map(() => r());
     for (let d = 0; d < this.D; d++) {
-      let count = this.staff(d);
-      const order = range(this.E).filter(e => !this.dir[e] && !this.fx[e][d] && !this.works(e, d)).sort((a, b) => {
-        const da = this.des[a].has(d + 1), db = this.des[b].has(d + 1);
-        if (da !== db) return da ? 1 : -1;
-        return need[a] !== need[b] ? need[b] - need[a] : tie[a] - tie[b];
-      });
-      for (const e of order) {
-        if (count >= minStaff) break;
-        if (!cov && (need[e] <= 0 || this.des[e].has(d + 1) || this.run(e, d) > maxCons)) continue;
-        this.setFree(e, d, true); need[e]--; count++;
+      const [L, Sh] = this.groups(d);
+      for (const [v, need, have0, h] of [[1, this.ctx.needLong, L, this.hL], [2, this.ctx.needShort, Sh, this.hS]]) {
+        let have = have0;
+        const order = range(this.E).filter(e => !this.dir[e] && !this.fx[e][d] && !this.works(e, d)).sort((a, b) => {
+          const da = this.des[a].has(d + 1), db = this.des[b].has(d + 1);
+          if (da !== db) return da ? 1 : -1;
+          return budget[b] - budget[a] || tie[a] - tie[b];
+        });
+        for (const e of order) {
+          if (have >= need) break;
+          if (!cov && (this.des[e].has(d + 1) || this.run(e, d) > mc || budget[e] < h / 2)) continue;
+          this.set(e, d, v); budget[e] -= h; have++;
+        }
       }
     }
-    for (const e of shuffle(range(this.E), r)) {
-      if (need[e] <= 0) continue;
-      const free = shuffle(range(this.D).filter(d => !this.fx[e][d] && !this.works(e, d) && !this.des[e].has(d + 1)), r);
-      const load = free.map(d => this.staff(d));
-      const sorted = free.map((d, i) => [d, load[i]]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
-      for (const d of sorted) {
-        if (need[e] <= 0) break;
-        if (this.run(e, d) <= maxCons) { this.setFree(e, d, true); need[e]--; }
+    for (const e of range(this.E).filter(e => this.dir[e])) {
+      for (let d = 0; d < this.D && budget[e] > this.hS / 2; d++) {
+        if (this.fx[e][d] || this.works(e, d) || this.des[e].has(d + 1) || this.run(e, d) > mc) continue;
+        this.set(e, d, 2); budget[e] -= this.hS;
       }
     }
   }
   perturb(r, flips) {
     const free = [];
     for (let e = 0; e < this.E; e++) for (let d = 0; d < this.D; d++) if (!this.fx[e][d]) free.push([e, d]);
-    for (const [e, d] of shuffle(free, r).slice(0, flips)) this.setFree(e, d, !this.works(e, d));
+    for (const [e, d] of shuffle(free, r).slice(0, flips)) this.set(e, d, this.mand[e][d] ? 1 + Math.floor(r() * 2) : Math.floor(r() * 3));
   }
   optimize(r, maxPasses = 40) {
     const eps = 1e-9;
@@ -268,73 +322,123 @@ class Board {
       const eo = shuffle(range(this.E), r), dO = shuffle(range(this.D), r);
       for (const e of eo) for (const d of dO) {
         if (this.fx[e][d]) continue;
-        const before = this.empCost(e) + this.dayCost(d), was = this.works(e, d);
-        this.setFree(e, d, !was);
-        if (this.empCost(e) + this.dayCost(d) < before - eps) improved = true; else this.setFree(e, d, was);
+        const cur = this.k[e][d]; let best = -1, bestCost = this.empCost(e) + this.dayCost(d) - eps;
+        for (const v of [0, 1, 2]) {
+          if (v === cur || (v === 0 && this.mand[e][d])) continue;
+          this.set(e, d, v);
+          const c = this.empCost(e) + this.dayCost(d);
+          if (c < bestCost) { bestCost = c; best = v; }
+        }
+        this.set(e, d, best >= 0 ? best : cur);
+        if (best >= 0) improved = true;
       }
       for (const d of dO) for (const a of eo) {
-        if (this.fx[a][d] || !this.works(a, d)) continue;
+        if (this.fx[a][d] || this.mand[a][d] || !this.works(a, d)) continue;
+        const v = this.k[a][d];
         for (const b of eo) {
           if (b === a || this.fx[b][d] || this.works(b, d)) continue;
-          const before = this.empCost(a) + this.empCost(b);
-          this.setFree(a, d, false); this.setFree(b, d, true);
-          if (this.empCost(a) + this.empCost(b) < before - eps) { improved = true; break; }
-          this.setFree(b, d, false); this.setFree(a, d, true);
+          const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
+          this.set(a, d, 0); this.set(b, d, v);
+          if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
+          this.set(b, d, 0); this.set(a, d, v);
+        }
+      }
+      for (const d of dO) for (const a of eo) {
+        if (this.fx[a][d] || this.k[a][d] !== 1) continue;
+        for (const b of eo) {
+          if (this.fx[b][d] || this.k[b][d] !== 2) continue;
+          const before = this.empCost(a) + this.empCost(b) + this.dayCost(d);
+          this.set(a, d, 2); this.set(b, d, 1);
+          if (this.empCost(a) + this.empCost(b) + this.dayCost(d) < before - eps) { improved = true; break; }
+          this.set(a, d, 1); this.set(b, d, 2);
         }
       }
       for (const e of eo) for (const d1 of dO) {
-        if (this.fx[e][d1] || !this.works(e, d1)) continue;
+        if (this.fx[e][d1] || this.mand[e][d1] || !this.works(e, d1)) continue;
+        const v = this.k[e][d1];
         for (const d2 of dO) {
           if (d2 === d1 || this.fx[e][d2] || this.works(e, d2)) continue;
           const before = this.empCost(e) + this.dayCost(d1) + this.dayCost(d2);
-          this.setFree(e, d1, false); this.setFree(e, d2, true);
+          this.set(e, d1, 0); this.set(e, d2, v);
           if (this.empCost(e) + this.dayCost(d1) + this.dayCost(d2) < before - eps) { improved = true; break; }
-          this.setFree(e, d2, false); this.setFree(e, d1, true);
+          this.set(e, d2, 0); this.set(e, d1, v);
         }
       }
       if (!improved) break;
     }
   }
   toCandidate(title, id) {
-    const mc = this.ctx.maxCons, grid = {}, sh = [], de = [], ho = [], ru = [];
+    const ctx = this.ctx, D = this.D, E = this.E, mc = ctx.maxCons, cap = ctx.maxHours, nL = ctx.needLong, nS = ctx.needShort;
+    const kind = range(E).map(() => Array(D).fill(null)), earlyCount = Array(E).fill(0);
+    for (let d = 0; d < D; d++) {
+      const shorts = []; let fixedE = 0, fixedT = 0;
+      for (let e = 0; e < E; e++) {
+        if (!this.works(e, d)) continue;
+        const lc = this.lc[e][d];
+        if (lc) { kind[e][d] = lc.kind || 'early'; if (lc.kind === 'early') fixedE++; if (lc.kind === 'late') fixedT++; }
+        else if (this.k[e][d] === 1) kind[e][d] = 'long';
+        else shorts.push(e);
+      }
+      shorts.sort((a, b) => earlyCount[a] - earlyCount[b] || (a + d) % E - (b + d) % E);
+      let needEarly = Math.ceil((shorts.length + fixedE + fixedT) / 2) - fixedE;
+      for (const e of shorts) { if (needEarly > 0) { kind[e][d] = 'early'; earlyCount[e]++; needEarly--; } else kind[e][d] = 'late'; }
+    }
+    const { norms } = computeNorms(ctx);
+    const grid = {}, msgs = { short: [], over: [], cap: [], des: [], hours: [], cons: [], single: [] };
     let pen = 0;
-    this.ctx.employees.forEach((emp, e) => {
-      const row = {}; let tot = 0, rs = 0, rl = 0;
-      for (let d = 0; d < this.D; d++) {
-        row[d + 1] = { status: this.st[e][d], hours: this.hr[e][d], locked: this.lk[e][d], dirMin: this.cnt[e][d], counts: this.counts(e, d) };
-        const wk = this.works(e, d);
+    ctx.employees.forEach((emp, e) => {
+      const row = {}, desDays = [], singleDays = [];
+      let tot = 0, rs = 0, rl = 0;
+      const vac = new Set(emp.vac);
+      for (let d = 0; d < D; d++) {
+        const lc = this.lc[e][d], wk = this.works(e, d), kd = kind[e][d];
+        const status = lc ? lc.status : wk ? (this.mand[e][d] ? 'mandatory' : 'work') : vac.has(d + 1) ? 'vacation' : this.des[e].has(d + 1) ? 'desiredOff' : 'off';
+        const hours = lc ? (wk ? lc.hours : 0) : wk ? kindHours(ctx, kd) : 0;
+        row[d + 1] = { status, kind: wk ? kd : null, hours, locked: !!lc, dirMin: this.cnt[e][d], counts: this.counts(e, d) };
         if (wk) {
-          tot += this.hr[e][d];
+          tot += hours;
           if (rl === 0) rs = d + 1;
           rl++;
           if (rl > mc) pen += W0.cons;
-          if (this.des[e].has(d + 1)) { pen += W0.des; de.push(`${emp.name}: смена ${d + 1} числа вместо желаемого выходного`); }
+          if (this.des[e].has(d + 1)) { pen += W0.des; desDays.push(d + 1); }
         }
-        if (!wk || d === this.D - 1) {
-          if (rl > mc) ru.push(`${emp.name}: ${rl} ${rl % 10 >= 2 && rl % 10 <= 4 && (rl % 100 < 12 || rl % 100 > 14) ? 'смены' : 'смен'} подряд с ${rs} числа (лимит ${mc})`);
+        if (!wk || d === D - 1) {
+          if (rl > mc) msgs.cons.push(`${emp.name}: ${rl} ${plural(rl, 'смена', 'смены', 'смен')} подряд с ${rs} числа (лимит ${mc})`);
+          if (!wk && rl === 1 && rs > 1) { pen += W0.single; singleDays.push(rs); }
           if (!wk) rl = 0;
         }
       }
       grid[emp.id] = row;
-      const dev = tot - emp.target;
-      pen += Math.round(Math.abs(dev) * W0.hour);
-      if (Math.abs(dev) >= 0.5) ho.push(`${emp.name}: ${signed(dev)}ч к месячной норме`);
+      if (desDays.length) msgs.des.push(`${emp.name}: ${plural(desDays.length, 'смена', 'смены', 'смен')} в желаемый выходной ${desDays.join(', ')} числа`);
+      if (singleDays.length) msgs.single.push(`${emp.name}: ${plural(singleDays.length, 'одиночная смена', 'одиночные смены', 'одиночных смен')} ${singleDays.join(', ')} числа (не по схеме 2/1, 3/1)`);
+      if (tot > cap + 0.01) { pen += Math.round((tot - cap) * W0.cap); msgs.cap.push(`${emp.name}: ${fmtH(tot)} ч — больше лимита ${cap} ч`); }
+      if (emp.target != null && Math.abs(tot - norms[emp.id]) >= 0.5) {
+        pen += Math.round(Math.abs(tot - norms[emp.id]) * W0.hour);
+        msgs.hours.push(`${emp.name}: ${signed(tot - norms[emp.id])}ч к норме ${fmtH(norms[emp.id])} ч`);
+      }
     });
-    for (let d = 0; d < this.D; d++) {
-      const c = this.staff(d);
-      if (c < this.ctx.minStaff) { pen += (this.ctx.minStaff - c) * W0.short; sh.push(`${d + 1} числа на смене ${c} чел. вместо ${this.ctx.minStaff}` + (range(this.E).some(e => this.dir[e] && this.works(e, d) && !this.cnt[e][d]) ? ' (директор на смене, его можно засчитать)' : '')); }
+    for (let d = 0; d < D; d++) {
+      const [L, Sh] = this.groups(d);
+      const dir = range(E).some(e => this.dir[e] && this.works(e, d) && !this.cnt[e][d]) ? ' (директор на смене, его можно засчитать)' : '';
+      if (L < nL) { pen += (nL - L) * W0.short; msgs.short.push(`${d + 1} числа: длинных смен ${L} из ${nL}${dir}`); }
+      if (Sh < nS) { pen += (nS - Sh) * W0.short; msgs.short.push(`${d + 1} числа: коротких смен ${Sh} из ${nS}${dir}`); }
+      if (L > nL) { pen += (L - nL) * W0.over; msgs.over.push(`${d + 1} числа: длинных смен ${L} вместо ${nL}`); }
+      if (Sh > nS) { pen += (Sh - nS) * W0.over; msgs.over.push(`${d + 1} числа: коротких смен ${Sh} вместо ${nS}`); }
     }
-    return { id, title, grid, penalty: pen, compromises: [...sh, ...de, ...ho, ...ru] };
+    return { id, title, grid, penalty: pen, compromises: [...msgs.short, ...msgs.over, ...msgs.cap, ...msgs.des, ...msgs.hours, ...msgs.cons, ...msgs.single] };
   }
 }
 
 const VARIANTS = [
-  { title: 'Вариант 1 · Желаемые выходные', w: { ...W0, des: 1000, short: 80, hour: 4 }, cov: false },
-  { title: 'Вариант 2 · Норма часов', w: { ...W0, des: 100, short: 60, hour: 60 }, cov: false },
-  { title: 'Вариант 3 · Закрытие смен', w: { ...W0, des: 60, short: 600, hour: 8, cons: 30 }, cov: true }
+  { title: 'Вариант 1 · Желаемые выходные', w: { ...W0, des: 1000 }, cov: false },
+  { title: 'Вариант 2 · Равные часы и схема', w: { ...W0, hour: 40, hourAuto: 12, cap: 200, single: 50, cons: 120 }, cov: false },
+  { title: 'Вариант 3 · Закрытие смен', w: { ...W0, des: 60, short: 600, over: 60, single: 15 }, cov: true }
 ];
 function sameGrid(a, b) {
-  return Object.keys(a.grid).every(id => Object.keys(a.grid[id]).every(d => isWork(a.grid[id][d].status) === isWork(b.grid[id]?.[d]?.status)));
+  return Object.keys(a.grid).every(id => Object.keys(a.grid[id]).every(d => {
+    const x = a.grid[id][d], y = b.grid[id]?.[d];
+    return isWork(x.status) === isWork(y?.status) && (!isWork(x.status) || groupOf(x.kind) === groupOf(y.kind));
+  }));
 }
 function solve(ctx, w, cov, seed) {
   const r = mulberry32(seed);
@@ -343,7 +447,7 @@ function solve(ctx, w, cov, seed) {
   let best = b, bestCost = b.total();
   for (let k = 0; k < 6; k++) {
     const t = best.clone();
-    t.perturb(r, Math.max(3, ctx.employees.length)); t.optimize(r);
+    t.perturb(r, Math.max(4, ctx.employees.length)); t.optimize(r);
     const c = t.total();
     if (c < bestCost - 1e-9) { best = t; bestCost = c; }
   }
@@ -364,33 +468,38 @@ function generateSchedules(ctx) {
 }
 function rebalanceSchedule(cand, ctx, edit) {
   const src = { ...cand, grid: structuredClone(cand.grid) };
-  if (edit) (src.grid[edit.id] ||= {})[edit.day] = { status: edit.status, hours: isWork(edit.status) ? edit.hours : 0, locked: true, dirMin: !!edit.dirMin && isWork(edit.status) };
-  const b = new Board(ctx, src, true, { ...W0, change: 3, bal: 0 });
-  b.base = b.st.map(r => r.map(isWork));
+  if (edit) {
+    const on = isWork(edit.status);
+    (src.grid[edit.id] ||= {})[edit.day] = { status: edit.status, kind: on ? edit.kind : null, hours: on ? edit.hours : 0, locked: true, dirMin: !!edit.dirMin && on };
+  }
+  const b = new Board(ctx, src, true, { ...W0, change: 3 });
+  b.base = b.k.map(r => r.slice());
   b.optimize(mulberry32(42));
   return b.toCandidate(cand.title, cand.id);
 }
-/*END-SOLVER*/
 
 /* ---------- Состояние ---------- */
 const now = new Date(), next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-const S = { year: next.getFullYear(), month: next.getMonth() + 1, minStaff: 2, maxCons: 2, employees: samples(),
-  cands: [], sel: 0, gctx: null, tab: 'setup', sheet: null, flash: new Set(), compOpen: true, img: null };
-const KEY = 'shift-planner-setup-v1';
+const S = { year: next.getFullYear(), month: next.getMonth() + 1, maxCons: 3, maxHours: 240, needLong: 3, needShort: 4,
+  shifts: defaultShifts(), employees: samples(),
+  cands: [], sel: 0, gctx: null, tab: 'setup', sheet: null, flash: new Set(), compOpen: true, img: null, delConfirm: null };
+const KEY = 'shift-planner-setup-v2', SETUP_KEYS = ['year', 'month', 'maxCons', 'maxHours', 'needLong', 'needShort', 'shifts', 'employees'];
 try {
   const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
-  if (saved && Array.isArray(saved.employees)) Object.assign(S, { year: saved.year, month: saved.month, minStaff: saved.minStaff, maxCons: saved.maxCons, employees: saved.employees });
+  if (saved && Array.isArray(saved.employees)) for (const k of SETUP_KEYS) if (saved[k] !== undefined) S[k] = saved[k];
 } catch (e) {}
-function save() { try { localStorage.setItem(KEY, JSON.stringify({ year: S.year, month: S.month, minStaff: S.minStaff, maxCons: S.maxCons, employees: S.employees })); } catch (e) {} }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(Object.fromEntries(SETUP_KEYS.map(k => [k, S[k]])))); } catch (e) {} }
+const makeCtx = () => structuredClone({ employees: S.employees, year: S.year, month: S.month, maxCons: S.maxCons, maxHours: S.maxHours, needLong: S.needLong, needShort: S.needShort, shifts: S.shifts });
 const cur = () => S.cands[S.sel] || null;
 const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
 function toast(text) {
   const t = $('#toast'); t.textContent = text; t.hidden = false;
   clearTimeout(toast.timer); toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
 }
 function generate() {
-  S.gctx = { employees: structuredClone(S.employees), year: S.year, month: S.month, minStaff: S.minStaff, maxCons: S.maxCons };
+  S.gctx = makeCtx();
   S.cands = generateSchedules(S.gctx); S.sel = 0; S.tab = 'grid';
   render(); window.scrollTo(0, 0);
 }
@@ -401,36 +510,59 @@ function applyChange(fn) {
   S.flash = new Set();
   for (const id in after.grid) for (const d in after.grid[id]) {
     const a = after.grid[id][d], b = before.grid[id]?.[d];
-    if (!b || a.status !== b.status || a.hours !== b.hours || a.counts !== b.counts) S.flash.add(id + ':' + d);
+    if (!b || a.status !== b.status || a.kind !== b.kind || a.hours !== b.hours || a.counts !== b.counts) S.flash.add(id + ':' + d);
   }
   renderGrid(); S.flash = new Set();
   if (S.sheet) renderSheet();
 }
 
 /* ---------- Экран настройки ---------- */
-const stepper = (act, value, label, minus = true, plus = true) =>
-  `<span class="stepper"><button data-act="${act}" data-v="-1" aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label ?? value}</output><button data-act="${act}" data-v="1" aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
-const chip = (n, s) => n ? `<span class="chip" style="--c:var(--s-${s})">${STATUS[s].short} · ${n}</span>` : '';
+const stepper = (act, label, minus = true, plus = true) =>
+  `<span class="stepper"><button data-act="${act}" data-v="-1" aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label}</output><button data-act="${act}" data-v="1" aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
+const chip = (n, s) => n ? `<span class="chip" style="--c:${STATUS[s].color || '#7a3dcf'}">${STATUS[s].short} · ${n}</span>` : '';
+const timeInputs = k => `<span class="times"><input type="time" id="t-${k}-start" value="${S.shifts[k].start}" aria-label="${KINDS[k].title}: начало">–<input type="time" id="t-${k}-end" value="${S.shifts[k].end}" aria-label="${KINDS[k].title}: конец"></span>`;
+
+function capacityNote() {
+  const ctx = makeCtx(), D = daysIn(S.year, S.month), { total, perPerson } = computeNorms(ctx);
+  const staff = S.employees.filter(e => !e.director).length, perDay = S.needLong + S.needShort;
+  const maxShifts = Math.floor(D * S.maxCons / (S.maxCons + 1)), shiftsEach = staff ? perDay * D / staff : Infinity;
+  const lines = [`Нужно в месяц: ${perDay * D} смен, ≈ ${fmtH(Math.round(total))} ч. На ${staff} ${plural(staff, 'сотрудника', 'сотрудников', 'сотрудников')} (без директора) — в среднем ${fmtH(Math.round(perPerson))} ч и ${fmtH(Math.round(shiftsEach * 10) / 10)} ${plural(Math.round(shiftsEach), 'смена', 'смены', 'смен')} на человека.`];
+  let warn = false;
+  if (perPerson > S.maxHours) { warn = true; lines.push(`Не хватает людей: это больше лимита ${S.maxHours} ч. Нужно минимум ${Math.ceil(total / S.maxHours)} сотрудников.`); }
+  if (shiftsEach > maxShifts) { warn = true; lines.push(`При схеме до ${S.maxCons}/1 один человек успевает не больше ${maxShifts} смен в месяц — нужно минимум ${Math.ceil(perDay * D / maxShifts)} сотрудников.`); }
+  return `<p class="note ${warn ? 'warn-text' : ''}">${lines.join(' ')}</p>`;
+}
 
 function renderSetup() {
+  const ctx = makeCtx(), { norms } = computeNorms(ctx);
   $('#setup').innerHTML = `
   <section class="panel"><h2>Период</h2>
     <div class="row"><label for="month">Месяц</label><select id="month">${MONTHS.map((m, i) => `<option value="${i + 1}" ${i + 1 === S.month ? 'selected' : ''}>${m}</option>`).join('')}</select></div>
     <div class="row"><span>Год</span>${stepper('year', S.year)}</div>
   </section>
+  <section class="panel"><h2>Смены · ${S.needLong + S.needShort} чел. в день</h2>
+    <div class="row"><span>Длинная<br><small class="note">${fmtH(kindHours(ctx, 'long'))} ч</small></span>${timeInputs('long')}</div>
+    <div class="row"><span>Длинных в день</span>${stepper('need-long', S.needLong + ' чел.', S.needLong > 0, S.needLong < 30)}</div>
+    <div class="row"><span>Короткая, утро<br><small class="note">${fmtH(kindHours(ctx, 'early'))} ч</small></span>${timeInputs('early')}</div>
+    <div class="row"><span>Короткая, вечер<br><small class="note">${fmtH(kindHours(ctx, 'late'))} ч</small></span>${timeInputs('late')}</div>
+    <div class="row"><span>Коротких в день</span>${stepper('need-short', S.needShort + ' чел.', S.needShort > 0, S.needShort < 30)}</div>
+    <p class="note">Короткие смены делятся между утром и вечером поровну. Часы считаются по времени начала и конца.</p>
+  </section>
   <section class="panel"><h2>Правила</h2>
-    <div class="row"><span>Минимум на смене</span>${stepper('min', S.minStaff, S.minStaff + ' чел.', S.minStaff > 1, S.minStaff < 20)}</div>
-    <div class="row"><span>Максимум смен подряд</span>${stepper('cons', S.maxCons, null, S.maxCons > 1, S.maxCons < 7)}</div>
+    <div class="row"><span>Схема работы<br><small class="note">2/1 и 3/1 чередуются</small></span>${stepper('cons', `до ${S.maxCons}/1`, S.maxCons > 1, S.maxCons < 7)}</div>
+    <div class="row"><span>Не более часов в месяц</span>${stepper('cap', S.maxHours + ' ч', S.maxHours > 40, S.maxHours < 400)}</div>
+    <p class="note">После ${S.maxCons > 2 ? `2–${S.maxCons}` : S.maxCons} смен подряд — выходной. Одиночных смен (1/1) программа старается избегать.</p>
   </section>
   <section class="panel"><h2>Сотрудники · ${S.employees.length}</h2>
     ${S.employees.map(e => `<div class="emp-row"><button class="emp" data-act="edit-emp" data-id="${e.id}">
       <b>${esc(e.name || 'Без имени')}</b>
-      <span class="meta">Смена ${fmtH(e.shift)} ч · норма ${fmtH(e.target)} ч/мес</span>
+      <span class="meta">Норма ${e.target == null ? `авто ≈ ${fmtH(norms[e.id])}` : fmtH(e.target)} ч/мес</span>
       <span class="chips">${chip(e.vac.length, 'vacation')}${chip(e.des.length, 'desiredOff')}${chip(e.man.length, 'mandatory')}${e.director ? '<span class="chip" style="--c:var(--accent)">Директор</span>' : ''}</span>
     </button><button class="del ${S.delConfirm === e.id ? 'confirm' : ''}" data-act="quick-del" data-id="${e.id}" aria-label="Удалить ${esc(e.name)}">${S.delConfirm === e.id ? 'Удалить?' : '✕'}</button></div>`).join('') || '<p class="note">Добавьте хотя бы одного сотрудника.</p>'}
     <form class="addform" id="add-form" autocomplete="off"><input type="text" id="new-name" placeholder="Имя нового сотрудника" aria-label="Имя нового сотрудника"><button class="btn" type="submit">Добавить</button></form>
+    ${capacityNote()}
     <div class="btns"><button class="btn" data-act="samples">Заменить на тестовых сотрудников</button></div>
-    <p class="note">Нажмите на карточку, чтобы изменить имя, часы и отметить даты. Кнопка ✕ удаляет сотрудника (нужно нажать дважды).</p>
+    <p class="note">Нажмите на карточку, чтобы изменить имя, норму и отметить даты. Кнопка ✕ удаляет сотрудника (нужно нажать дважды).</p>
   </section>
   <button class="btn primary" data-act="generate" ${S.employees.length ? '' : 'disabled'}>Сформировать график</button>`;
 }
@@ -440,14 +572,15 @@ function renderGrid() {
   const el = $('#grid'), c = cur(), ctx = S.gctx;
   if (!c) { el.innerHTML = `<div class="panel empty">Графика пока нет.<br>Настройте месяц и сотрудников и нажмите «Сформировать график».</div>`; return; }
   const wrapOld = el.querySelector('.tablewrap'), scroll = wrapOld ? [wrapOld.scrollLeft, wrapOld.scrollTop] : null;
-  const D = daysIn(ctx.year, ctx.month), days = range(D).map(i => i + 1), locks = lockedCount(c);
+  const D = daysIn(ctx.year, ctx.month), days = range(D).map(i => i + 1), locks = lockedCount(c), { norms } = computeNorms(ctx);
+  const stale = JSON.stringify(makeCtx()) !== JSON.stringify(ctx);
   const cell = (emp, d) => {
     const a = c.grid[emp.id]?.[d] || { status: 'off', hours: 0 }, on = isWork(a.status);
-    return `<td><button class="cell ${on ? 'on' : ''} ${a.locked ? 'locked' : ''} ${S.flash.has(emp.id + ':' + d) ? 'flash' : ''}" style="--c:var(--s-${a.status})"
-      data-act="cell" data-id="${emp.id}" data-d="${d}" aria-label="${esc(emp.name)}, ${d} число: ${STATUS[a.status].title}">
-      <b>${on ? fmtH(a.hours) : STATUS[a.status].short}</b>${on ? `<i>${a.dirMin ? 'мин' : STATUS[a.status].short}</i>` : ''}</button></td>`;
+    const sub = !on ? '' : a.dirMin ? 'мин' : a.status === 'mandatory' ? 'обяз' : fmtH(a.hours) + 'ч';
+    return `<td><button class="cell ${on ? 'on' : ''} ${a.locked ? 'locked' : ''} ${S.flash.has(emp.id + ':' + d) ? 'flash' : ''}" style="--c:${cellColor(a)}"
+      data-act="cell" data-id="${emp.id}" data-d="${d}" aria-label="${esc(emp.name)}, ${d} число: ${on ? kindTime(ctx, a.kind) : STATUS[a.status].title}">
+      <b>${on ? kindLabel(ctx, a.kind) : STATUS[a.status].short}</b>${on ? `<i>${sub}</i>` : ''}</button></td>`;
   };
-  const stale = JSON.stringify([S.employees, S.year, S.month, S.minStaff, S.maxCons]) !== JSON.stringify([ctx.employees, ctx.year, ctx.month, ctx.minStaff, ctx.maxCons]);
   el.innerHTML = `
   ${stale ? '<div class="banner"><span>Настройки изменились после составления графика.</span><button class="btn" data-act="generate">Сформировать заново</button></div>' : ''}
   ${S.cands.length > 1 ? `<div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">Вариант ${i + 1}</button>`).join('')}</div>` : ''}
@@ -465,13 +598,18 @@ function renderGrid() {
     <thead><tr><th class="corner">Сотрудник<br><span style="font-weight:500;color:var(--muted)">Факт / Норма ч.</span></th>
       ${days.map(d => `<th class="${wdIndex(ctx.year, ctx.month, d) >= 5 ? 'we' : ''}"><b>${d}</b>${WD[wdIndex(ctx.year, ctx.month, d)]}</th>`).join('')}</tr></thead>
     <tbody>${ctx.employees.map(emp => {
-      const f = worked(c, emp.id), ok = Math.abs(f - emp.target) < 0.5;
-      return `<tr><th class="name"><button class="nm-btn" data-act="person" data-id="${emp.id}" aria-label="Изменить или удалить ${esc(emp.name)}"><span class="nm">${esc(emp.name)}</span></button>${emp.director ? '<span class="dir">дир.</span> ' : ''}<span class="fact ${ok ? 'ok' : 'warn'}">${fmtH(f)} / ${fmtH(emp.target)}</span></th>${days.map(d => cell(emp, d)).join('')}</tr>`;
+      const f = worked(c, emp.id), n = norms[emp.id], cls = f > ctx.maxHours + 0.01 ? 'bad' : Math.abs(f - n) <= 8 ? 'ok' : 'warn';
+      return `<tr><th class="name"><button class="nm-btn" data-act="person" data-id="${emp.id}" aria-label="Изменить или удалить ${esc(emp.name)}"><span class="nm">${esc(emp.name)}</span></button>${emp.director ? '<span class="dir">дир.</span> ' : ''}<span class="fact ${cls}">${fmtH(f)} / ${fmtH(n)}</span></th>${days.map(d => cell(emp, d)).join('')}</tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><th class="name">Итого на смене</th>${days.map(d => { const n = staffOn(c, d); return `<td><span class="tot ${n < ctx.minStaff ? 'bad' : 'ok'}">${n}${dirExtra(c, d) ? '<small>+Д</small>' : ''}</span></td>`; }).join('')}</tr></tfoot>
+    <tfoot><tr><th class="name">Итого на смене<br><span style="font-weight:500;color:var(--muted)">длинные · короткие</span></th>${days.map(d => {
+      const [L, Sh] = groupsOn(c, d), bad = L < ctx.needLong || Sh < ctx.needShort, over = L > ctx.needLong || Sh > ctx.needShort;
+      return `<td><span class="tot ${bad ? 'bad' : over ? 'over' : 'ok'}"><b>${L + Sh}${dirExtra(c, d) ? '<sup>+Д</sup>' : ''}</b><small>${L}·${Sh}</small></span></td>`;
+    }).join('')}</tr></tfoot>
   </table></div>
-  <div class="legend">${Object.keys(STATUS).map(s => `<span style="--c:var(--s-${s})">${STATUS[s].short} — ${STATUS[s].title}</span>`).join('')}<span style="--c:var(--accent)">«+Д» — директор на смене сверх минимума, «мин» — директор засчитан в минимум</span></div>
-  <p class="note">Нажмите на имя, чтобы переименовать или удалить сотрудника. Нажмите на ячейку, чтобы поменять статус или часы. Остальной график подстроится автоматически, изменённые ячейки подсветятся.</p>`;
+  <div class="legend">${Object.keys(KINDS).map(k => `<span style="--c:${KINDS[k].color}">${kindTime(ctx, k)} — ${KINDS[k].title.toLowerCase()}, ${fmtH(kindHours(ctx, k))} ч</span>`).join('')}
+    ${['vacation', 'desiredOff', 'off'].map(s => `<span style="--c:${STATUS[s].color}">${STATUS[s].short} — ${STATUS[s].title}</span>`).join('')}
+    <span style="--c:var(--accent)">«обяз» — обязательная смена, «мин» и «+Д» — директор в минимуме / сверх минимума</span></div>
+  <p class="note">Нажмите на имя, чтобы переименовать или удалить сотрудника. Нажмите на ячейку, чтобы поменять смену или часы. Остальной график подстроится автоматически, изменённые ячейки подсветятся.</p>`;
   const wrap = el.querySelector('.tablewrap');
   if (scroll) { wrap.scrollLeft = scroll[0]; wrap.scrollTop = scroll[1]; }
   el.querySelector('#comp')?.addEventListener('toggle', e => { S.compOpen = e.target.open; });
@@ -486,50 +624,52 @@ function renderSheet() {
   if (sh.type === 'emp') {
     const e = S.employees.find(x => x.id === sh.id);
     if (!e) { S.sheet = null; box.hidden = true; return; }
-    const D = daysIn(S.year, S.month), lead = wdIndex(S.year, S.month, 1);
+    const D = daysIn(S.year, S.month), lead = wdIndex(S.year, S.month, 1), auto = computeNorms(makeCtx()).norms[e.id];
     const st = d => e.vac.includes(d) ? 'vacation' : e.des.includes(d) ? 'desiredOff' : e.man.includes(d) ? 'mandatory' : '';
     const modes = [['vacation', 'Отпуск'], ['desiredOff', 'Выходной'], ['mandatory', 'Обяз. смена']];
     body.innerHTML = `<header><h3>Сотрудник</h3>${close}</header>
       <input type="text" id="emp-name" value="${esc(e.name)}" placeholder="Имя" autocomplete="off">
-      <label class="switch" for="emp-dir"><span>Директор<br><span class="note">Не входит в «минимум на смене». В графике его смену можно засчитать в минимум галочкой.</span></span><input type="checkbox" id="emp-dir" ${e.director ? 'checked' : ''}></label>
-      <div class="row"><span>Длительность смены</span>${stepper('emp-shift', 0, fmtH(e.shift) + ' ч', e.shift > 1, e.shift < 24)}</div>
-      <div class="row"><span>Норма в месяц</span>${stepper('emp-target', 0, fmtH(e.target) + ' ч', e.target > 0, e.target < 320)}</div>
+      <label class="switch" for="emp-dir"><span>Директор<br><span class="note">Не входит в число людей на смене. В графике его смену можно засчитать галочкой.</span></span><input type="checkbox" id="emp-dir" ${e.director ? 'checked' : ''}></label>
+      <label class="switch" for="emp-own"><span>Своя норма часов<br><span class="note">${e.target == null ? `Сейчас авто: ≈ ${fmtH(auto)} ч — нужные часы делятся поровну с учётом отпусков` : `Не больше лимита ${S.maxHours} ч`}</span></span><input type="checkbox" id="emp-own" ${e.target != null ? 'checked' : ''}></label>
+      ${e.target != null ? `<div class="row"><span>Норма в месяц</span>${stepper('emp-target', fmtH(e.target) + ' ч', e.target > 0, e.target < S.maxHours)}</div>` : ''}
       <div><div class="seg" style="display:flex">${modes.map(([m, t]) => `<button data-act="mode" data-m="${m}" aria-pressed="${sh.mode === m}">${t}</button>`).join('')}</div></div>
       <div class="cal">${WD.map(w => `<span class="wd">${w}</span>`).join('')}${'<span></span>'.repeat(lead)}
-        ${range(D).map(i => { const d = i + 1, s = st(d); return `<button data-act="day" data-d="${d}" class="${wdIndex(S.year, S.month, d) >= 5 ? 'we' : ''}" ${s ? `data-s="${s}" style="--c:var(--s-${s})"` : ''}>${d}</button>`; }).join('')}</div>
+        ${range(D).map(i => { const d = i + 1, s = st(d); return `<button data-act="day" data-d="${d}" class="${wdIndex(S.year, S.month, d) >= 5 ? 'we' : ''}" ${s ? `data-s="${s}" style="--c:${STATUS[s].color || '#7a3dcf'}"` : ''}>${d}</button>`; }).join('')}</div>
       <p class="note">${MONTHS[S.month - 1]} ${S.year}. Выберите режим и нажимайте на даты, повторное нажатие снимает отметку.</p>
       <div class="btns"><button class="btn" data-act="clear-days">Очистить отметки</button>
         <button class="btn danger" data-act="del-emp">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить сотрудника'}</button></div>`;
     $('#emp-name').addEventListener('input', ev => { e.name = ev.target.value; save(); renderSetup(); });
-    $('#emp-dir').addEventListener('change', ev => { e.director = ev.target.checked; save(); renderSetup(); });
+    $('#emp-dir').addEventListener('change', ev => { e.director = ev.target.checked; save(); renderSetup(); renderSheet(); });
+    $('#emp-own').addEventListener('change', ev => { e.target = ev.target.checked ? Math.min(S.maxHours, Math.round(auto)) : null; save(); renderSetup(); renderSheet(); });
   } else if (sh.type === 'person') {
     const e = S.gctx.employees.find(x => x.id === sh.id);
     if (!e) { S.sheet = null; box.hidden = true; return; }
     body.innerHTML = `<header><h3>Сотрудник в графике</h3>${close}</header>
       <input type="text" id="person-name" value="${esc(e.name)}" placeholder="Имя" autocomplete="off">
-      <div class="kv"><span>Смена / норма</span><b>${fmtH(e.shift)} ч / ${fmtH(e.target)} ч</b></div>
-      <p class="note">Часы, норму и даты можно поменять на вкладке «Настройка». После удаления график пересчитается, чтобы закрыть освободившиеся смены.</p>
+      <div class="kv"><span>Норма</span><b>${fmtH(computeNorms(S.gctx).norms[e.id])} ч${e.target == null ? ' (авто)' : ''}</b></div>
+      <p class="note">Норму и даты можно поменять на вкладке «Настройка». После удаления график пересчитается, чтобы закрыть освободившиеся смены.</p>
       <button class="btn danger" data-act="person-del">${sh.confirmDel ? 'Нажмите ещё раз, чтобы удалить' : 'Удалить из графика'}</button>`;
     $('#person-name').addEventListener('input', ev => renamePerson(e.id, ev.target.value));
   } else if (sh.type === 'person-new') {
     body.innerHTML = `<header><h3>Новый сотрудник</h3>${close}</header>
       <form class="addform" id="person-form" autocomplete="off"><input type="text" id="person-new-name" placeholder="Имя"><button class="btn primary" type="submit" style="padding:9px 14px;font-size:15px">Добавить</button></form>
-      <p class="note">Сотрудник получит смену 12 ч и норму 144 ч. График подстроится: новому сотруднику назначатся смены, остальным часть смен снимется.</p>`;
+      <p class="note">Норма считается автоматически. График подстроится: новому сотруднику назначатся смены, у остальных часть смен снимется.</p>`;
     $('#person-new-name').focus();
   } else if (sh.type === 'cell') {
     const c = cur(), ctx = S.gctx, emp = ctx.employees.find(x => x.id === sh.id), a = c.grid[sh.id][sh.day];
-    const on = isWork(a.status), shown = a.status === 'desiredOff' ? 'off' : a.status;
-    const f = worked(c, emp.id);
+    const on = isWork(a.status), shown = on ? a.kind : a.status === 'desiredOff' ? 'off' : a.status;
+    const [L, Sh] = groupsOn(c, sh.day), f = worked(c, emp.id);
+    const opts = [...Object.keys(KINDS).map(k => [k, kindTime(ctx, k), KINDS[k].title, KINDS[k].color]), ['off', 'Выходной', '', STATUS.off.color], ['vacation', 'Отпуск', '', STATUS.vacation.color]];
     body.innerHTML = `<header><h3>${esc(emp.name)}, ${sh.day} ${MONTHS_GEN[ctx.month - 1]}</h3>${close}</header>
-      <div class="status-grid">${['work', 'off', 'vacation', 'mandatory'].map(s => `<button data-act="set-status" data-s="${s}" style="--c:var(--s-${s})" aria-pressed="${shown === s}">${STATUS[s].title}</button>`).join('')}</div>
-      <div class="row"><span>Часы за эту смену</span>${stepper('cell-hours', 0, on ? fmtH(a.hours) + ' ч' : '—', on && a.hours > 0.5, on && a.hours < 24)}</div>
-      ${emp.director ? `<label class="switch" for="dirmin"><span>Засчитать директора в минимум смены<br><span class="note">Если кто-то не может выйти, директор займёт его место в минимуме.</span></span><input type="checkbox" id="dirmin" ${a.dirMin ? 'checked' : ''} ${on ? '' : 'disabled'}></label>` : ''}
+      <div class="status-grid">${opts.map(([v, t, sub, col]) => `<button data-act="set-status" data-s="${v}" style="--c:${col}" aria-pressed="${shown === v}">${t}${sub ? `<br><small>${sub}</small>` : ''}</button>`).join('')}</div>
+      <div class="row"><span>Часы за эту смену</span>${stepper('cell-hours', on ? fmtH(a.hours) + ' ч' : '—', on && a.hours > 0.5, on && a.hours < 24)}</div>
+      ${emp.director ? `<label class="switch" for="dirmin"><span>Засчитать директора в смену<br><span class="note">Если кто-то не может выйти, директор займёт его место.</span></span><input type="checkbox" id="dirmin" ${a.dirMin ? 'checked' : ''} ${on ? '' : 'disabled'}></label>` : ''}
       <label class="switch" for="lock">Зафиксировать ячейку<input type="checkbox" id="lock" ${a.locked ? 'checked' : ''}></label>
-      <p class="note">Изменённая ячейка фиксируется автоматически. Зафиксированные ячейки не меняются при пересчёте.</p>
-      <div class="kv"><span>Факт / Норма</span><b>${fmtH(f)} / ${fmtH(emp.target)} ч</b></div>
-      <div class="kv"><span>На смене в этот день</span><b>${staffOn(c, sh.day)} из ${ctx.minStaff} чел.${dirExtra(c, sh.day) ? ' + директор' : ''}</b></div>`;
+      <p class="note">${a.status === 'mandatory' ? 'Это обязательная смена: время можно поменять. ' : ''}Изменённая ячейка фиксируется автоматически. Зафиксированные ячейки не меняются при пересчёте.</p>
+      <div class="kv"><span>Факт / Норма</span><b>${fmtH(f)} / ${fmtH(computeNorms(ctx).norms[emp.id])} ч</b></div>
+      <div class="kv"><span>На смене в этот день</span><b>длинных ${L} из ${ctx.needLong}, коротких ${Sh} из ${ctx.needShort}${dirExtra(c, sh.day) ? ' + директор' : ''}</b></div>`;
     $('#lock').addEventListener('change', ev => setLock(sh.id, sh.day, ev.target.checked));
-    $('#dirmin')?.addEventListener('change', ev => edit(a.status, a.hours, ev.target.checked));
+    $('#dirmin')?.addEventListener('change', ev => edit(a.status, a.kind, a.hours, ev.target.checked));
   } else if (sh.type === 'image') {
     body.innerHTML = `<header><h3>Картинка графика</h3>${close}</header>
       <img class="shot" src="${S.img.url}" alt="График смен, ${esc(S.img.title)}">
@@ -538,9 +678,9 @@ function renderSheet() {
   }
 }
 
-function edit(status, hours, dirMin) {
+function edit(status, kind, hours, dirMin) {
   const sh = S.sheet;
-  applyChange(() => { S.cands[S.sel] = rebalanceSchedule(cur(), S.gctx, { id: sh.id, day: sh.day, status, hours, dirMin }); });
+  applyChange(() => { S.cands[S.sel] = rebalanceSchedule(cur(), S.gctx, { id: sh.id, day: sh.day, status, kind, hours, dirMin }); });
 }
 function setLock(id, day, locked) {
   applyChange(() => {
@@ -549,9 +689,8 @@ function setLock(id, day, locked) {
     S.cands[S.sel] = locked ? c : rebalanceSchedule(c, S.gctx);
   });
 }
-
 function newEmployee(name) {
-  return { id: uid(), name: name.trim() || `Сотрудник ${S.employees.length + 1}`, shift: 12, target: 144, vac: [], des: [], man: [], director: false };
+  return { id: uid(), name: name.trim() || `Сотрудник ${S.employees.length + 1}`, target: null, vac: [], des: [], man: [], director: false };
 }
 function rebalanceAll() {
   applyChange(() => { S.cands = S.cands.map(c => rebalanceSchedule(c, S.gctx)); });
@@ -579,8 +718,8 @@ function removeFromSchedule(id) {
 
 /* ---------- Картинка (canvas, масштаб 3) ---------- */
 function drawSchedule(c, ctx) {
-  const D = daysIn(ctx.year, ctx.month), E = ctx.employees.length;
-  const nameW = 170, cellW = 38, rowH = 34, totW = 104, pad = 28, titleH = 52;
+  const D = daysIn(ctx.year, ctx.month), E = ctx.employees.length, { norms } = computeNorms(ctx);
+  const nameW = 170, cellW = 44, rowH = 34, totW = 104, pad = 28, titleH = 52;
   const W = pad * 2 + nameW + D * cellW + totW;
   const font = (wt, px) => `${wt} ${px}px "Golos Text", system-ui, sans-serif`;
   const measure = document.createElement('canvas').getContext('2d');
@@ -606,10 +745,10 @@ function drawSchedule(c, ctx) {
   g.fillStyle = '#666'; g.font = font(500, 14); g.textAlign = 'right';
   g.fillText(c.title, W - pad, pad + 16);
   const y0 = pad + titleH;
-  const box = (x, y, w, fill, text, color = '#111', wt = 500, align = 'center') => {
+  const box = (x, y, w, fill, text, color = '#111', wt = 500, align = 'center', px = 12) => {
     if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, rowH); }
     g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = .5; g.strokeRect(x, y, w, rowH);
-    g.fillStyle = color; g.font = font(wt, 12); g.textAlign = align;
+    g.fillStyle = color; g.font = font(wt, px); g.textAlign = align;
     g.fillText(text, align === 'left' ? x + 8 : x + w / 2, y + rowH / 2);
   };
   const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
@@ -620,32 +759,37 @@ function drawSchedule(c, ctx) {
     box(xDay(d), y0, cellW, we ? '#fdeceb' : null, '', '#111');
     g.textAlign = 'center'; g.fillStyle = we ? '#c3352b' : '#111';
     g.font = font(700, 12); g.fillText(String(d), xDay(d) + cellW / 2, y0 + 12);
-    g.font = font(400, 9); g.fillText(WD[wdIndex(ctx.year, ctx.month, d) ], xDay(d) + cellW / 2, y0 + 25);
+    g.font = font(400, 9); g.fillText(WD[wdIndex(ctx.year, ctx.month, d)], xDay(d) + cellW / 2, y0 + 25);
   }
   box(xTot, y0, totW, null, 'Факт / Норма', '#111', 700);
   ctx.employees.forEach((emp, i) => {
     const y = y0 + rowH * (i + 1);
     box(pad, y, nameW, null, emp.name + (emp.director ? ' (дир.)' : ''), '#111', 600, 'left');
     for (let d = 1; d <= D; d++) {
-      const a = c.grid[emp.id]?.[d] || { status: 'off', hours: 0 }, on = isWork(a.status), col = STATUS[a.status].color;
-      box(xDay(d), y, cellW, tint(col, on ? .85 : .2), on ? fmtH(a.hours) : STATUS[a.status].short, on ? '#fff' : '#222', on ? 700 : 500);
+      const a = c.grid[emp.id]?.[d] || { status: 'off', hours: 0 }, on = isWork(a.status);
+      box(xDay(d), y, cellW, tint(cellColor(a), on ? .88 : .2), on ? kindLabel(ctx, a.kind) : STATUS[a.status].short, on ? '#fff' : '#222', on ? 700 : 500, 'center', on ? 11 : 12);
     }
-    const f = worked(c, emp.id), ok = Math.abs(f - emp.target) < 0.5;
-    box(xTot, y, totW, ok ? '#e3f4ea' : '#fdf0dc', `${fmtH(f)} / ${fmtH(emp.target)}`, '#111', 700);
+    const f = worked(c, emp.id), n = norms[emp.id];
+    box(xTot, y, totW, f > ctx.maxHours + 0.01 ? '#fbdcd9' : Math.abs(f - n) <= 8 ? '#e3f4ea' : '#fdf0dc', `${fmtH(f)} / ${fmtH(n)}`, '#111', 700);
   });
   const yT = y0 + rowH * (E + 1);
-  box(pad, yT, nameW, null, 'Итого на смене', '#111', 700, 'left');
-  for (let d = 1; d <= D; d++) { const n = staffOn(c, d); box(xDay(d), yT, cellW, n < ctx.minStaff ? '#fbdcd9' : null, String(n) + (dirExtra(c, d) ? '+Д' : ''), '#111', 700); }
+  box(pad, yT, nameW, null, 'Итого: длинные · короткие', '#111', 700, 'left');
+  for (let d = 1; d <= D; d++) {
+    const [L, Sh] = groupsOn(c, d);
+    box(xDay(d), yT, cellW, L < ctx.needLong || Sh < ctx.needShort ? '#fbdcd9' : null, `${L}·${Sh}${dirExtra(c, d) ? '+Д' : ''}`, '#111', 700, 'center', 11);
+  }
   box(xTot, yT, totW, null, fmtH(ctx.employees.reduce((s, e) => s + worked(c, e.id), 0)) + ' ч', '#111', 700);
   g.lineWidth = 1.2; g.strokeStyle = 'rgba(0,0,0,.6)'; g.strokeRect(pad, y0, W - pad * 2, tableH);
   let x = pad; const yL = y0 + tableH + 24;
   g.font = font(400, 12); g.textAlign = 'left';
-  for (const s of Object.keys(STATUS)) {
-    g.fillStyle = tint(STATUS[s].color, isWork(s) ? .85 : .35); g.fillRect(x, yL - 7, 14, 14);
-    g.fillStyle = '#333'; const t = `${STATUS[s].short} — ${STATUS[s].title}`; g.fillText(t, x + 20, yL);
+  const legend = [...Object.keys(KINDS).map(k => [KINDS[k].color, .88, `${kindTime(ctx, k)} (${fmtH(kindHours(ctx, k))} ч)`]),
+    ...['vacation', 'desiredOff', 'off'].map(s => [STATUS[s].color, .35, `${STATUS[s].short} — ${STATUS[s].title}`])];
+  for (const [col, al, t] of legend) {
+    g.fillStyle = tint(col, al); g.fillRect(x, yL - 7, 14, 14);
+    g.fillStyle = '#333'; g.fillText(t, x + 20, yL);
     x += 20 + g.measureText(t).width + 22;
   }
-  g.textAlign = 'right'; g.fillText(`Минимум на смене: ${ctx.minStaff} чел.`, W - pad, yL);
+  g.textAlign = 'right'; g.fillText(`В смену: ${ctx.needLong} длинных + ${ctx.needShort} коротких · лимит ${ctx.maxHours} ч/мес`, W - pad, yL);
   g.textAlign = 'left'; g.fillStyle = '#666';
   lines.forEach((l, i) => g.fillText(l, pad, yL + 26 + i * 17));
   return cv;
@@ -675,9 +819,11 @@ function render() {
   $('#period-label').textContent = S.gctx && S.tab === 'grid' ? `${MONTHS[S.gctx.month - 1]} ${S.gctx.year}` : `${MONTHS[S.month - 1]} ${S.year}`;
   renderSetup(); renderGrid(); renderSheet();
 }
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 document.addEventListener('change', ev => {
-  if (ev.target.id === 'month') { S.month = +ev.target.value; save(); render(); }
+  const id = ev.target.id;
+  if (id === 'month') { S.month = +ev.target.value; save(); render(); }
+  const m = id.match(/^t-(long|early|late)-(start|end)$/);
+  if (m && ev.target.value) { S.shifts[m[1]][m[2]] = ev.target.value; save(); renderSetup(); renderGrid(); }
 });
 document.addEventListener('click', ev => {
   if (ev.target.id === 'sheet') { S.sheet = null; renderSheet(); return; }
@@ -686,47 +832,50 @@ document.addEventListener('click', ev => {
   if (!b || b.disabled) return;
   const v = +b.dataset.v || 0, sh = S.sheet;
   const emp = sh?.type === 'emp' ? S.employees.find(x => x.id === sh.id) : null;
+  const setup = () => { save(); renderSetup(); renderGrid(); };
   switch (b.dataset.act) {
     case 'tab': S.tab = b.dataset.tab; render(); break;
     case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); render(); break;
-    case 'min': S.minStaff = clamp(S.minStaff + v, 1, 20); save(); renderSetup(); break;
-    case 'cons': S.maxCons = clamp(S.maxCons + v, 1, 7); save(); renderSetup(); break;
+    case 'cons': S.maxCons = clamp(S.maxCons + v, 1, 7); setup(); break;
+    case 'cap': S.maxHours = clamp(S.maxHours + v * 4, 40, 400); setup(); break;
+    case 'need-long': S.needLong = clamp(S.needLong + v, 0, 30); setup(); break;
+    case 'need-short': S.needShort = clamp(S.needShort + v, 0, 30); setup(); break;
     case 'quick-del':
       if (S.delConfirm !== b.dataset.id) { S.delConfirm = b.dataset.id; renderSetup(); break; }
-      S.employees = S.employees.filter(x => x.id !== b.dataset.id); S.delConfirm = null; save(); renderSetup(); toast('Сотрудник удалён'); break;
+      S.employees = S.employees.filter(x => x.id !== b.dataset.id); S.delConfirm = null; setup(); toast('Сотрудник удалён'); break;
     case 'person': S.sheet = { type: 'person', id: b.dataset.id }; renderSheet(); break;
     case 'person-new': S.sheet = { type: 'person-new' }; renderSheet(); break;
     case 'person-del':
       if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
       removeFromSchedule(sh.id); break;
-    case 'samples': S.employees = samples(); save(); renderSetup(); toast('Добавлены тестовые сотрудники'); break;
+    case 'samples': S.employees = samples(); setup(); toast('Добавлены тестовые сотрудники'); break;
     case 'generate':
       b.textContent = 'Считаю…'; b.disabled = true;
       setTimeout(generate, 30); break;
     case 'edit-emp': S.sheet = { type: 'emp', id: b.dataset.id, mode: 'vacation' }; renderSheet(); break;
     case 'close': S.sheet = null; renderSheet(); break;
-    case 'emp-shift': emp.shift = clamp(emp.shift + v, 1, 24); save(); renderSheet(); renderSetup(); break;
-    case 'emp-target': emp.target = clamp(emp.target + v * 4, 0, 320); save(); renderSheet(); renderSetup(); break;
+    case 'emp-target': emp.target = clamp(emp.target + v * 4, 0, S.maxHours); setup(); renderSheet(); break;
     case 'mode': sh.mode = b.dataset.m; renderSheet(); break;
     case 'day': {
       const d = +b.dataset.d, key = { vacation: 'vac', desiredOff: 'des', mandatory: 'man' }[sh.mode];
       const had = emp[key].includes(d);
       emp.vac = emp.vac.filter(x => x !== d); emp.des = emp.des.filter(x => x !== d); emp.man = emp.man.filter(x => x !== d);
       if (!had) emp[key].push(d);
-      save(); renderSheet(); renderSetup(); break;
+      setup(); renderSheet(); break;
     }
-    case 'clear-days': emp.vac = []; emp.des = []; emp.man = []; save(); renderSheet(); renderSetup(); break;
+    case 'clear-days': emp.vac = []; emp.des = []; emp.man = []; setup(); renderSheet(); break;
     case 'del-emp':
       if (!sh.confirmDel) { sh.confirmDel = true; renderSheet(); break; }
-      S.employees = S.employees.filter(x => x.id !== sh.id); S.sheet = null; save(); renderSheet(); renderSetup(); break;
+      S.employees = S.employees.filter(x => x.id !== sh.id); S.sheet = null; setup(); renderSheet(); break;
     case 'variant': S.sel = +b.dataset.i; renderGrid(); break;
     case 'cell': S.sheet = { type: 'cell', id: b.dataset.id, day: +b.dataset.d }; renderSheet(); break;
     case 'set-status': {
       const a = cur().grid[sh.id][sh.day], s = b.dataset.s;
-      const empCtx = S.gctx.employees.find(x => x.id === sh.id);
-      edit(s, isWork(s) ? (isWork(a.status) ? a.hours : empCtx.shift) : 0, a.dirMin); break;
+      if (KINDS[s]) edit(a.status === 'mandatory' ? 'mandatory' : 'work', s, isWork(a.status) && a.kind === s ? a.hours : kindHours(S.gctx, s), a.dirMin);
+      else edit(s, null, 0, false);
+      break;
     }
-    case 'cell-hours': { const a = cur().grid[sh.id][sh.day]; edit(a.status, clamp(a.hours + v * 0.5, 0.5, 24), a.dirMin); break; }
+    case 'cell-hours': { const a = cur().grid[sh.id][sh.day]; edit(a.status, a.kind, clamp(a.hours + v * 0.5, 0.5, 24), a.dirMin); break; }
     case 'reset':
       applyChange(() => {
         const c = structuredClone(cur());
@@ -748,7 +897,7 @@ document.addEventListener('submit', ev => {
 });
 document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && S.sheet) { S.sheet = null; renderSheet(); } });
 
-S.gctx = { employees: structuredClone(S.employees), year: S.year, month: S.month, minStaff: S.minStaff, maxCons: S.maxCons };
+S.gctx = makeCtx();
 S.cands = generateSchedules(S.gctx);
 render();
 </script>
