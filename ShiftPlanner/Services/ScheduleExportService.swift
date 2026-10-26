@@ -35,7 +35,7 @@ struct PrintableScheduleView: View {
                 }
                 ForEach(context.employees) { employee in
                     HStack(spacing: 0) {
-                        box(width: nameWidth, alignment: .leading) { Text(employee.name).lineLimit(1) }
+                        box(width: nameWidth, alignment: .leading) { Text(employee.name + (employee.isDirector ? " (дир.)" : "")).lineLimit(1) }
                         ForEach(info.days, id: \.self) { day in
                             let a = candidate.assignment(employee.id, day)
                             let status = a?.status ?? .off
@@ -56,7 +56,7 @@ struct PrintableScheduleView: View {
                     ForEach(info.days, id: \.self) { day in
                         let count = candidate.staffCount(on: day)
                         box(width: cellWidth, fill: count < context.minStaffPerDay ? Color.red.opacity(0.2) : .clear) {
-                            Text("\(count)").bold()
+                            Text("\(count)" + (candidate.hasExtraDirector(on: day) ? "+Д" : "")).bold()
                         }
                     }
                     box(width: totalWidth) {

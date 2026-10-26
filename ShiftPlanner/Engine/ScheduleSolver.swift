@@ -60,12 +60,14 @@ enum ScheduleSolver {
 
     static func rebalanceSchedule(_ candidate: ScheduleCandidate, context: SolverContext,
                                   editing employeeID: UUID? = nil, day: Int = 0,
-                                  status: ShiftStatus = .work, hours: Double = 0) -> ScheduleCandidate {
+                                  status: ShiftStatus = .work, hours: Double = 0,
+                                  directorInMinimum: Bool = false) -> ScheduleCandidate {
         var source = candidate
         if let employeeID {
             source.grid[employeeID, default: [:]][day] = DayAssignment(
                 day: day, employeeID: employeeID, status: status,
-                hours: status.isWorking ? hours : 0, isLocked: true)
+                hours: status.isWorking ? hours : 0, isLocked: true,
+                directorInMinimum: directorInMinimum && status.isWorking)
         }
         var board = Board(context: context, source: source, keepUnlocked: true,
                           weights: PenaltyWeights(change: 3, balance: 0))
@@ -102,6 +104,7 @@ private struct Board {
     var hours: [[Double]]
     var fixed: [[Bool]]
     var locked: [[Bool]]
+    var directorCounted: [[Bool]]
     var baseline: [[Bool]]?
 
     init(context: SolverContext, source: ScheduleCandidate?, keepUnlocked: Bool, weights: PenaltyWeights) {
@@ -113,6 +116,7 @@ private struct Board {
         hours = Array(repeating: Array(repeating: 0, count: days), count: n)
         fixed = Array(repeating: Array(repeating: false, count: days), count: n)
         locked = fixed
+        directorCounted = fixed
         for (e, emp) in context.employees.enumerated() {
             for d in 0..<days {
                 let day = d + 1
@@ -122,6 +126,7 @@ private struct Board {
                     hours[e][d] = previous.hours
                     fixed[e][d] = true
                     locked[e][d] = true
+                    directorCounted[e][d] = previous.directorInMinimum && previous.status.isWorking
                 } else if emp.vacationDays.contains(day) {
                     statuses[e][d] = .vacation
                     fixed[e][d] = true
@@ -142,9 +147,14 @@ private struct Board {
         let emp = ctx.employees[e]
         statuses[e][d] = working ? .work : (emp.desiredOffDays.contains(d + 1) ? .desiredOff : .off)
         hours[e][d] = working ? emp.defaultShiftHours : 0
+        directorCounted[e][d] = false
     }
 
-    func staff(_ d: Int) -> Int { (0..<statuses.count).filter { works($0, d) }.count }
+    func counts(_ e: Int, _ d: Int) -> Bool {
+        works(e, d) && (!ctx.employees[e].isDirector || directorCounted[e][d])
+    }
+
+    func staff(_ d: Int) -> Int { (0..<statuses.count).filter { counts($0, d) }.count }
 
     func run(_ e: Int, around d: Int) -> Int {
         var count = 1, i = d - 1, j = d + 1
@@ -189,7 +199,7 @@ private struct Board {
         let tieBreak = (0..<n).map { _ in Int.random(in: 0..<1000, using: &rng) }
         for d in 0..<days {
             var count = staff(d)
-            let order = (0..<n).filter { !fixed[$0][d] && !works($0, d) }.sorted {
+            let order = (0..<n).filter { !ctx.employees[$0].isDirector && !fixed[$0][d] && !works($0, d) }.sorted {
                 let a = ctx.employees[$0].desiredOffDays.contains(d + 1), b = ctx.employees[$1].desiredOffDays.contains(d + 1)
                 if a != b { return !a }
                 return need[$0] != need[$1] ? need[$0] > need[$1] : tieBreak[$0] < tieBreak[$1]
@@ -266,7 +276,8 @@ private struct Board {
             var total = 0.0, runStart = 0, runLength = 0
             for d in 0..<days {
                 row[d + 1] = DayAssignment(day: d + 1, employeeID: emp.id, status: statuses[e][d],
-                                           hours: hours[e][d], isLocked: locked[e][d])
+                                           hours: hours[e][d], isLocked: locked[e][d],
+                                           directorInMinimum: directorCounted[e][d], countsToMinimum: counts(e, d))
                 if works(e, d) {
                     total += hours[e][d]
                     if runLength == 0 { runStart = d + 1 }
@@ -295,7 +306,11 @@ private struct Board {
             let count = staff(d)
             guard count < ctx.minStaffPerDay else { continue }
             penalty += (ctx.minStaffPerDay - count) * Int(base.shortage)
-            shortages.append("\(d + 1) числа на смене \(count) чел. вместо \(ctx.minStaffPerDay)")
+            let director = (0..<statuses.count).contains {
+                ctx.employees[$0].isDirector && works($0, d) && !directorCounted[$0][d]
+            }
+            shortages.append("\(d + 1) числа на смене \(count) чел. вместо \(ctx.minStaffPerDay)"
+                + (director ? " (директор на смене, его можно засчитать)" : ""))
         }
         return ScheduleCandidate(id: id, title: title, grid: grid, penaltyScore: penalty,
                                  compromises: shortages + desired + hourNotes + runs)

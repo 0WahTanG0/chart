@@ -129,8 +129,9 @@ struct ScheduleGridView: View {
                         HStack(spacing: 0) {
                             ForEach(info.days, id: \.self) { day in
                                 let count = candidate.staffCount(on: day)
-                                Text("\(count)")
+                                Text("\(count)" + (candidate.hasExtraDirector(on: day) ? "+Д" : ""))
                                     .font(.callout.bold())
+                                    .minimumScaleFactor(0.6)
                                     .frame(width: cellSize - 4, height: cellSize - 4)
                                     .background((count < context.minStaffPerDay ? Color.red : Color.green).opacity(0.2),
                                                 in: RoundedRectangle(cornerRadius: 6))
@@ -147,7 +148,7 @@ struct ScheduleGridView: View {
     private func nameCell(_ employee: Employee, _ candidate: ScheduleCandidate) -> some View {
         let deviation = candidate.hoursDeviation(of: employee)
         return VStack(alignment: .leading, spacing: 3) {
-            Text(employee.name).font(.subheadline.weight(.semibold)).lineLimit(1)
+            Text(employee.name + (employee.isDirector ? " · дир." : "")).font(.subheadline.weight(.semibold)).lineLimit(1)
             Text("\(candidate.workedHours(of: employee.id).hoursText) / \(employee.targetMonthlyHours.hoursText) ч")
                 .font(.caption2.bold())
                 .padding(.horizontal, 6)
@@ -170,7 +171,7 @@ struct ScheduleGridView: View {
                     Text(status.isWorking ? (assignment?.hours ?? 0).hoursText : status.shortLabel)
                         .font(.caption.bold())
                     if status.isWorking {
-                        Text(status.shortLabel).font(.system(size: 8))
+                        Text(assignment?.directorInMinimum == true ? "мин" : status.shortLabel).font(.system(size: 8))
                     }
                 }
                 .foregroundStyle(status.isWorking ? Color.white : Color.primary)
@@ -214,7 +215,7 @@ struct CellEditorView: View {
                     Section("Статус") {
                         Picker("Статус", selection: Binding(
                             get: { a.status == .desiredOff ? .off : a.status },
-                            set: { apply($0, $0.isWorking ? (a.status.isWorking ? a.hours : employee.defaultShiftHours) : 0) }
+                            set: { apply($0, $0.isWorking ? (a.status.isWorking ? a.hours : employee.defaultShiftHours) : 0, a.directorInMinimum) }
                         )) {
                             ForEach(editableStatuses) { Label($0.title, systemImage: $0.icon).tag($0) }
                         }
@@ -222,9 +223,19 @@ struct CellEditorView: View {
                         .labelsHidden()
                     }
                     Section("Часы за смену") {
-                        Stepper("\(a.hours.hoursText) ч", value: Binding(get: { a.hours }, set: { apply(a.status, $0) }),
+                        Stepper("\(a.hours.hoursText) ч", value: Binding(get: { a.hours }, set: { apply(a.status, $0, a.directorInMinimum) }),
                                 in: 0.5...24, step: 0.5)
                             .disabled(!a.status.isWorking)
+                    }
+                    if employee.isDirector {
+                        Section {
+                            Toggle("Засчитать директора в минимум смены", isOn: Binding(
+                                get: { a.directorInMinimum },
+                                set: { apply(a.status, a.hours, $0) }))
+                                .disabled(!a.status.isWorking)
+                        } footer: {
+                            Text("Если кто-то не может выйти, директор займёт его место в минимуме.")
+                        }
                     }
                     Section {
                         Toggle("Зафиксировать ячейку", systemImage: a.isLocked ? "lock.fill" : "lock.open", isOn: Binding(
@@ -237,7 +248,8 @@ struct CellEditorView: View {
                     }
                     Section("Итог сотрудника") {
                         LabeledContent("Факт / Норма", value: "\(store.current?.workedHours(of: employee.id).hoursText ?? "0") / \(employee.targetMonthlyHours.hoursText) ч")
-                        LabeledContent("На смене в этот день", value: "\(store.current?.staffCount(on: ref.day) ?? 0) чел.")
+                        LabeledContent("На смене в этот день", value: "\(store.current?.staffCount(on: ref.day) ?? 0) чел."
+                                       + (store.current?.hasExtraDirector(on: ref.day) == true ? " + директор" : ""))
                     }
                 }
             }
@@ -253,9 +265,10 @@ struct CellEditorView: View {
         return "\(name), \(date)"
     }
 
-    private func apply(_ status: ShiftStatus, _ hours: Double) {
+    private func apply(_ status: ShiftStatus, _ hours: Double, _ directorInMinimum: Bool) {
         withAnimation(.snappy) {
-            store.applyEdit(employeeID: ref.employeeID, day: ref.day, status: status, hours: hours)
+            store.applyEdit(employeeID: ref.employeeID, day: ref.day, status: status, hours: hours,
+                            directorInMinimum: directorInMinimum)
         }
     }
 }

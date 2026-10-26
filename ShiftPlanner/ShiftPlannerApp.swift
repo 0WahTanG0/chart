@@ -43,10 +43,11 @@ final class ScheduleStore {
         selectedIndex = 0
     }
 
-    func applyEdit(employeeID: UUID, day: Int, status: ShiftStatus, hours: Double) {
+    func applyEdit(employeeID: UUID, day: Int, status: ShiftStatus, hours: Double, directorInMinimum: Bool = false) {
         guard let context = generatedContext, let candidate = current else { return }
         candidates[selectedIndex] = ScheduleSolver.rebalanceSchedule(
-            candidate, context: context, editing: employeeID, day: day, status: status, hours: hours)
+            candidate, context: context, editing: employeeID, day: day, status: status, hours: hours,
+            directorInMinimum: directorInMinimum)
     }
 
     func setLock(employeeID: UUID, day: Int, locked: Bool) {

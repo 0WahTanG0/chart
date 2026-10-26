@@ -55,6 +55,7 @@ struct Employee: Codable, Identifiable, Equatable, Hashable, Sendable {
     var vacationDays: Set<Int> = []
     var desiredOffDays: Set<Int> = []
     var mandatoryShiftDays: Set<Int> = []
+    var isDirector = false
 
     static var samples: [Employee] {
         [
@@ -67,7 +68,8 @@ struct Employee: Codable, Identifiable, Equatable, Hashable, Sendable {
             Employee(name: "Кузнецов Д.", defaultShiftHours: 8, targetMonthlyHours: 160,
                      desiredOffDays: [1, 2], mandatoryShiftDays: [15, 16]),
             Employee(name: "Смирнова О.", defaultShiftHours: 12, targetMonthlyHours: 120,
-                     vacationDays: [20, 21, 22], desiredOffDays: [28])
+                     vacationDays: [20, 21, 22], desiredOffDays: [28]),
+            Employee(name: "Орлова Н.", defaultShiftHours: 12, targetMonthlyHours: 144, isDirector: true)
         ]
     }
 }
@@ -78,6 +80,8 @@ struct DayAssignment: Codable, Identifiable, Equatable, Hashable, Sendable {
     var status: ShiftStatus
     var hours: Double
     var isLocked = false
+    var directorInMinimum = false
+    var countsToMinimum = true
 
     var id: String { "\(employeeID.uuidString)-\(day)" }
 }
@@ -102,7 +106,11 @@ struct ScheduleCandidate: Codable, Identifiable, Equatable, Sendable {
     }
 
     func staffCount(on day: Int) -> Int {
-        grid.values.filter { $0[day]?.status.isWorking == true }.count
+        grid.values.filter { $0[day]?.countsToMinimum == true }.count
+    }
+
+    func hasExtraDirector(on day: Int) -> Bool {
+        grid.values.contains { $0[day].map { $0.status.isWorking && !$0.countsToMinimum } ?? false }
     }
 
     var lockedCount: Int {

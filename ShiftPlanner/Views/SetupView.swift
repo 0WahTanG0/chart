@@ -71,6 +71,14 @@ private struct EmployeeRow: View {
                 badge(employee.vacationDays.count, .vacation)
                 badge(employee.desiredOffDays.count, .desiredOff)
                 badge(employee.mandatoryShiftDays.count, .mandatory)
+                if employee.isDirector {
+                    Text("Директор")
+                        .font(.caption2.bold())
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.2), in: Capsule())
+                        .foregroundStyle(Color.accentColor)
+                }
             }
         }
         .padding(.vertical, 2)
@@ -116,6 +124,10 @@ struct EmployeeEditorView: View {
         Form {
             Section("Сотрудник") {
                 TextField("Имя", text: $employee.name)
+                Toggle(isOn: $employee.isDirector) {
+                    Text("Директор")
+                    Text("Не входит в «минимум на смене». В графике его смену можно засчитать в минимум.")
+                }
                 Stepper("Смена: \(employee.defaultShiftHours.hoursText) ч", value: $employee.defaultShiftHours, in: 1...24, step: 1)
                 Stepper("Норма: \(employee.targetMonthlyHours.hoursText) ч/мес", value: $employee.targetMonthlyHours, in: 0...320, step: 4)
             }
