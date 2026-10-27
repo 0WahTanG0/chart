@@ -50,6 +50,8 @@ select, input[type="text"], input[type="number"] { background: var(--surface-2);
 .stepper button:disabled { opacity: .4; cursor: default; }
 .schema { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .schema .stepper output { min-width: 28px; font-size: 18px; }
+.schemes { display: grid; gap: 6px; justify-items: end; }
+.sch-del { width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); color: var(--danger); font-weight: 600; }
 .schema > b { font-size: 20px; color: var(--muted); }
 .times { display: inline-flex; align-items: center; gap: 4px; flex: none; }
 .times select { width: 86px; font-variant-numeric: tabular-nums; padding: 7px 6px; font-weight: 600; }
@@ -197,7 +199,7 @@ const codeLabel = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `$
 const codeTime = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${s.start}–${s.end}`; };
 
 // Версия и сборка: 'artifact' — страница на claude.ai, 'web' — itch.io, браузер и приложение Android (сборщик подставляет сам).
-const APP_VERSION = '1.0.0', WEB_BUILD = 1, BUILD_TARGET = 'web';
+const APP_VERSION = '1.1.0', WEB_BUILD = 2, BUILD_TARGET = 'web';
 const inApp = () => !!window.AndroidApp;
 function emptyDefaults() {
   const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
@@ -205,13 +207,32 @@ function emptyDefaults() {
 }
 const defaults = () => typeof personalDefaults === 'function' ? personalDefaults() : emptyDefaults();
 
+// Схемы работы, например 3/2 и 2/1. После серии из L рабочих дней нужно столько выходных,
+// сколько в самой мягкой схеме, где рабочих дней не меньше L. Длиннее самой длинной схемы работать нельзя.
+const maxWork = schemes => Math.max(...schemes.map(s => s.work));
+const offAfter = (schemes, len) => {
+  const fit = schemes.filter(s => s.work >= len);
+  return Math.min(...(fit.length ? fit : schemes.filter(s => s.work === maxWork(schemes))).map(s => s.off));
+};
+function schemesText(schemes) {
+  const W = maxWork(schemes), parts = [];
+  for (let from = 1; from <= W;) {
+    let to = from;
+    while (to < W && offAfter(schemes, to + 1) === offAfter(schemes, from)) to++;
+    const off = offAfter(schemes, from);
+    parts.push(`после ${from === to ? to : `${from}–${to}`} ${plural(to, 'рабочего дня', 'рабочих дней', 'рабочих дней')} — минимум ${off} ${plural(off, 'выходной', 'выходных', 'выходных')}`);
+    from = to + 1;
+  }
+  return `Схема ${schemes.map(s => `${s.work}/${s.off}`).join(', ')}: ${parts.join('; ')}. Больше ${W} ${plural(W, 'рабочего дня', 'рабочих дней', 'рабочих дней')} подряд нельзя.`;
+}
 // Сколько дней человек может отработать по своей схеме с учётом отметок.
 function maxWorkable(ctx, p) {
   const m = ctx.marks[p.id] || {};
-  let run = 0, off = Infinity, days = 0;
+  const W = maxWork(p.schemes);
+  let run = 0, off = Infinity, last = 0, days = 0;
   for (let d = 1; d <= daysIn(ctx.year, ctx.month); d++) {
-    const c = m[d], can = isWorkCode(c) || (c !== 'off' && c !== 'vacation' && run < p.workDays && (run > 0 || off >= p.offDays));
-    if (can) { run++; off = 0; days++; } else { off = run > 0 ? 1 : off + 1; run = 0; }
+    const c = m[d], can = isWorkCode(c) || (c !== 'off' && c !== 'vacation' && run < W && (run > 0 || off >= offAfter(p.schemes, last)));
+    if (can) { run++; off = 0; days++; } else { if (run > 0) { last = run; off = 1; } else off++; run = 0; }
   }
   return days;
 }
@@ -263,7 +284,8 @@ class Board {
     this.strict = opt.strict || {}; this.allow = opt.allow || { days: {}, cap: {}, schema: {} };
     this.norm = P.map(p => norms[p.id]);
     this.dir = P.map(p => p.director);
-    this.W = P.map(p => p.workDays); this.Y = P.map(p => p.offDays);
+    this.W = P.map(p => maxWork(p.schemes));
+    this.needOff = P.map(p => range(this.D + 2).map(len => offAfter(p.schemes, len)));
     this.H = [0, codeHours(ctx, 'long'), codeHours(ctx, 'early'), codeHours(ctx, 'late')];
     this.own = P.map(p => p.director ? codeHours(ctx, 'own', p) : 0);
     this.allowed = P.map(p => p.director ? (w.dirUse < 1e5 ? [0, 4, 1, 2, 3] : [0, 4]) : [0, 1, 2, 3]);
@@ -295,12 +317,15 @@ class Board {
     if (d > 0 && this.k[e][d - 1]) return true;
     let g = 0, i = d - 1;
     while (i >= 0 && !this.k[e][i]) { g++; i--; }
-    return i < 0 || g >= this.Y[e];
+    if (i < 0) return true;
+    let len = 0;
+    while (i >= 0 && this.k[e][i]) { len++; i--; }
+    return g >= this.needOff[e][len];
   }
   groups(d) { let L = 0, Ea = 0, Ta = 0; for (let e = 0; e < this.E; e++) { const v = this.k[e][d]; if (v === 1) L++; else if (v === 2) Ea++; else if (v === 3) Ta++; } return [L, Ea, Ta]; }
   empCost(e) {
-    const w = this.w, W = this.W[e], Y = this.Y[e], row = this.k[e];
-    let tot = 0, run = 0, runStart = 0, free = false, over = 0, gap = 0, singles = 0, mk = 0, du = 0, ch = 0, off = -1;
+    const w = this.w, W = this.W[e], needOff = this.needOff[e], row = this.k[e];
+    let tot = 0, run = 0, runStart = 0, last = 0, free = false, over = 0, gap = 0, singles = 0, mk = 0, du = 0, ch = 0, off = -1;
     for (let d = 0; d <= this.D; d++) {
       const v = d < this.D ? row[d] : 0;
       if (d < this.D) {
@@ -310,14 +335,14 @@ class Board {
         if (this.base && this.base[e][d] !== v) ch++;
       }
       if (v) {
-        if (run === 0) { runStart = d; if (off >= 0 && off < Y) gap += Y - off; }
+        if (run === 0) { runStart = d; if (off >= 0 && off < needOff[last]) gap += needOff[last] - off; }
         run++;
         if (!this.lock[e][d] && !this.must[e][d]) free = true;
       } else {
         if (run > 0) {
           if (run > W) over += run - W;
           if (run === 1 && free && W > 1 && runStart > 0 && d < this.D) singles++;
-          run = 0; free = false; off = 0;
+          last = run; run = 0; free = false; off = 0;
         }
         if (off >= 0) off++;
       }
@@ -429,7 +454,7 @@ class Board {
     const ctx = this.ctx, D = this.D, grid = {}, fixed = {}, changes = [], viol = [];
     ctx.people.forEach((p, e) => {
       const row = {};
-      let tot = 0, run = 0, runStart = 0, off = -1, offStart = 0;
+      let tot = 0, run = 0, runStart = 0, last = 0, off = -1, offStart = 0;
       for (let d = 0; d <= D; d++) {
         const v = d < D ? this.k[e][d] : 0;
         if (d < D) {
@@ -445,12 +470,12 @@ class Board {
           }
         }
         if (v) {
-          if (run === 0) { runStart = d; if (off >= 0 && off < this.Y[e]) viol.push({ t: 'gap', id: p.id, day: offStart + 1, len: off, need: this.Y[e] }); }
+          if (run === 0) { runStart = d; if (off >= 0 && off < this.needOff[e][last]) viol.push({ t: 'gap', id: p.id, day: offStart + 1, len: off, need: this.needOff[e][last] }); }
           run++;
         } else {
           if (run > 0) {
             if (run > this.W[e]) viol.push({ t: 'cons', id: p.id, day: runStart + 1, len: run, max: this.W[e] });
-            run = 0; off = 0; offStart = d;
+            last = run; run = 0; off = 0; offStart = d;
           }
           if (off >= 0) off++;
         }
@@ -533,17 +558,18 @@ function improve(cand, ctx, opt) {
 
 /* ---------- Состояние ---------- */
 const S = { shifts: { long: { start: '09:00', end: '22:00' }, early: { start: '12:00', end: '20:00' }, late: { start: '13:00', end: '21:00' } },
-  needLong: 3, needShort: 4, workDays: 3, offDays: 1, maxHours: 240, dayNeed: {}, strict: { hours: true, staff: true, schema: true },
+  needLong: 3, needShort: 4, schemes: [{ work: 3, off: 1 }], maxHours: 240, dayNeed: {}, strict: { hours: true, staff: true, schema: true },
   cands: [], sel: 0, gctx: null, ver: 0, tab: 'setup', sheet: null, flash: new Set(), img: null, warn: null };
 Object.assign(S, defaults());
 // Ключ хранения не меняется между версиями: обновление приложения не стирает данные.
 const KEY = 'grafik-smen:data', LEGACY_KEYS = ['shift-planner-v5'], DATA_VERSION = 1;
-const SAVE_KEYS = ['year', 'month', 'shifts', 'needLong', 'needShort', 'workDays', 'offDays', 'maxHours', 'staff', 'directors', 'marks', 'dayNeed', 'strict'];
+const SAVE_KEYS = ['year', 'month', 'shifts', 'needLong', 'needShort', 'schemes', 'maxHours', 'staff', 'directors', 'marks', 'dayNeed', 'strict'];
 function exportData() { return { app: 'grafik-smen', v: DATA_VERSION, saved: new Date().toISOString(), ...Object.fromEntries(SAVE_KEYS.map(k => [k, S[k]])) }; }
 // Принимает данные любой прошлой версии и дополняет недостающее значениями по умолчанию.
 function applyData(data) {
   if (!data || !Array.isArray(data.staff)) return false;
   if (typeof personalMigrate === 'function') personalMigrate(data);
+  if (!Array.isArray(data.schemes) && data.workDays) data.schemes = [{ work: data.workDays, off: data.offDays || 1 }];
   for (const k of SAVE_KEYS) if (data[k] !== undefined) S[k] = data[k];
   S.directors = (S.directors || []).map(p => ({ start: '10:00', end: '19:00', workDays: 5, offDays: 2, ...p }));
   S.strict = { hours: true, staff: true, schema: true, ...S.strict };
@@ -557,8 +583,9 @@ try {
 const ym = () => ymKey(S.year, S.month);
 const monthMarks = () => (S.marks[ym()] ||= {});
 const monthNeed = () => (S.dayNeed[ym()] ||= {});
-const people = () => [...S.staff.map(p => ({ ...p, director: false, workDays: S.workDays, offDays: S.offDays })), ...S.directors.map(p => ({ ...p, director: true }))];
-const setupKey = () => JSON.stringify([S.year, S.month, S.shifts, S.needLong, S.needShort, S.workDays, S.offDays, S.maxHours,
+const people = () => [...S.staff.map(p => ({ ...p, director: false, schemes: S.schemes })),
+  ...S.directors.map(p => ({ ...p, director: true, schemes: [{ work: p.workDays, off: p.offDays }] }))];
+const setupKey = () => JSON.stringify([S.year, S.month, S.shifts, S.needLong, S.needShort, S.schemes, S.maxHours,
   S.staff.map(p => p.id), S.directors.map(p => [p.id, p.start, p.end, p.workDays, p.offDays]), monthMarks(), monthNeed()]);
 const makeCtx = () => structuredClone({ key: setupKey(), year: S.year, month: S.month, shifts: S.shifts, needLong: S.needLong, needShort: S.needShort,
   maxHours: S.maxHours, people: people(), marks: monthMarks(), dayNeed: monthNeed() });
@@ -621,8 +648,8 @@ function setMark(id, day, code) {
 }
 
 /* ---------- Настройка ---------- */
-const stepper = (act, label, minus = true, plus = true) =>
-  `<span class="stepper"><button data-act="${act}" data-v="-1" aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label}</output><button data-act="${act}" data-v="1" aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
+const stepper = (act, label, minus = true, plus = true, attrs = '') =>
+  `<span class="stepper"><button data-act="${act}" data-v="-1" ${attrs} aria-label="Уменьшить" ${minus ? '' : 'disabled'}>−</button><output>${label}</output><button data-act="${act}" data-v="1" ${attrs} aria-label="Увеличить" ${plus ? '' : 'disabled'}>+</button></span>`;
 const schemaCtl = (wAct, oAct, W, Y) => `<span class="schema">${stepper(wAct, W, W > 1, W < 14)}<b>/</b>${stepper(oAct, Y, Y > 1, Y < 7)}</span>`;
 const TIMES = range(48).map(i => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
 const timeSelect = (id, value, label) => `<select id="${id}" aria-label="${label}">${(TIMES.includes(value) ? TIMES : [...TIMES, value].sort()).map(t => `<option ${t === value ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
@@ -654,9 +681,11 @@ function renderSetup() {
     <p class="note">В смене ${total} ${plural(total, 'человек', 'человека', 'человек')}, директор — сверх этого. Другое количество на конкретный день можно задать в графике: нажмите на дату.</p>
   </section>
   <section class="panel"><h2>Правила</h2>
-    <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>${schemaCtl('work-days', 'off-days', S.workDays, S.offDays)}</div>
+    <div class="row"><span>Схема работы<br><small>рабочих дней / выходных</small></span>
+      <div class="schemes">${S.schemes.map((sc, i) => `<span class="schema">${stepper('sch-work', sc.work, sc.work > 1, sc.work < 14, `data-i="${i}"`)}<b>/</b>${stepper('sch-off', sc.off, sc.off > 1, sc.off < 7, `data-i="${i}"`)}${S.schemes.length > 1 ? `<button class="sch-del" data-act="sch-del" data-i="${i}" aria-label="Убрать схему ${sc.work}/${sc.off}">✕</button>` : ''}</span>`).join('')}
+        ${S.schemes.length < 4 ? '<button class="btn" data-act="sch-add">+ Ещё схема</button>' : ''}</div></div>
     <div class="row"><span>Макс. часов в месяц</span><span class="num"><input type="number" id="max-hours" value="${S.maxHours}" min="1" max="744" inputmode="numeric" aria-label="Максимум часов в месяц"> ч</span></div>
-    <p class="note">Схема ${S.workDays}/${S.offDays}: не больше ${S.workDays} ${plural(S.workDays, 'рабочего дня', 'рабочих дней', 'рабочих дней')} подряд, потом минимум ${S.offDays} ${plural(S.offDays, 'выходной', 'выходных', 'выходных')}.</p>
+    <p class="note">${schemesText(S.schemes)}</p>
   </section>
   <section class="panel"><h2>Сотрудники · ${S.staff.length}</h2>
     <div class="people">${S.staff.map(p => personBtn(p, false)).join('')}</div>
@@ -949,8 +978,13 @@ document.addEventListener('click', ev => {
     case 'year': S.year = clamp(S.year + v, 2020, 2100); save(); renderTabs(); renderSetup(); break;
     case 'need-long': S.needLong = clamp(S.needLong + v, 0, 30); save(); renderSetup(); break;
     case 'need-short': S.needShort = clamp(S.needShort + v, 0, 30); save(); renderSetup(); break;
-    case 'work-days': S.workDays = clamp(S.workDays + v, 1, 14); save(); renderSetup(); break;
-    case 'off-days': S.offDays = clamp(S.offDays + v, 1, 7); save(); renderSetup(); break;
+    case 'sch-work': { const sc = S.schemes[+b.dataset.i]; sc.work = clamp(sc.work + v, 1, 14); save(); renderSetup(); break; }
+    case 'sch-off': { const sc = S.schemes[+b.dataset.i]; sc.off = clamp(sc.off + v, 1, 7); save(); renderSetup(); break; }
+    case 'sch-add': {
+      const next = [[2, 1], [3, 2], [3, 1], [2, 2], [4, 2], [5, 2]].find(([w, o]) => !S.schemes.some(sc => sc.work === w && sc.off === o)) || [2, 1];
+      S.schemes.push({ work: next[0], off: next[1] }); save(); renderSetup(); break;
+    }
+    case 'sch-del': S.schemes.splice(+b.dataset.i, 1); save(); renderSetup(); break;
     case 'generate': openGrid(true); break;
     case 'person': S.sheet = { type: 'person', id: b.dataset.id, mode: 'off', kind: 'long' }; renderSheet(); break;
     case 'close': S.sheet = null; renderSheet(); break;
