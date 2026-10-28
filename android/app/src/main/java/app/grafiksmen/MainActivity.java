@@ -216,7 +216,10 @@ public class MainActivity extends Activity {
                     runOnUiThread(() -> toast("У вас последняя версия"));
                 }
             } catch (Exception e) {
-                if (manual) runOnUiThread(() -> toast("Не удалось проверить обновления. Проверьте интернет."));
+                String why = String.valueOf(e.getMessage()).contains("HTTP 404")
+                        ? "Обновлений пока нет: сервер обновлений ещё не настроен."
+                        : "Не удалось проверить обновления. Проверьте интернет.";
+                if (manual) runOnUiThread(() -> toast(why));
             } finally {
                 checking = false;
             }
