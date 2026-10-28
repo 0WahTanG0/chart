@@ -2,8 +2,8 @@
   "apkVersionCode": 2,
   "apkVersionName": "1.2.0",
   "apkUrl": "https://raw.githubusercontent.com/0WahTanG0/grafik-smen/main/grafik-smen.apk",
-  "webBuild": 3,
-  "webVersion": "1.2.0",
+  "webBuild": 4,
+  "webVersion": "1.3.0",
   "webUrl": "https://raw.githubusercontent.com/0WahTanG0/grafik-smen/main/index.html",
-  "notes": "График можно сохранить и отправить в PDF."
+  "notes": "Короткие смены: можно добавить сколько угодно, у каждой своё время."
 }
