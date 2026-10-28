@@ -298,11 +298,15 @@ public class MainActivity extends Activity {
     }
 
     private void shareImage(String dataUrl) throws IOException {
+        shareBytes("grafik.png", "image/png", decodeDataUrl(dataUrl));
+    }
+
+    private void shareBytes(String name, String mime, byte[] bytes) throws IOException {
         File dir = new File(getCacheDir(), "share");
         dir.mkdirs();
-        try (OutputStream out = new FileOutputStream(new File(dir, "grafik.png"))) { out.write(decodeDataUrl(dataUrl)); }
-        Uri uri = Uri.parse("content://app.grafiksmen.share/grafik.png");
-        Intent send = new Intent(Intent.ACTION_SEND).setType("image/png")
+        try (OutputStream out = new FileOutputStream(new File(dir, name))) { out.write(bytes); }
+        Uri uri = Uri.parse("content://app.grafiksmen.share/" + Uri.encode(name));
+        Intent send = new Intent(Intent.ACTION_SEND).setType(mime)
                 .putExtra(Intent.EXTRA_STREAM, uri)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         send.setClipData(ClipData.newRawUri("График смен", uri));
@@ -357,6 +361,23 @@ public class MainActivity extends Activity {
                     insertMedia(MediaStore.Downloads.EXTERNAL_CONTENT_URI, name, "application/json", Environment.DIRECTORY_DOWNLOADS, text.getBytes(StandardCharsets.UTF_8));
                     toast("Копия сохранена в «Загрузки»: " + name);
                 } catch (Exception e) { toast("Не удалось сохранить файл"); }
+            });
+        }
+
+        @JavascriptInterface
+        public void saveFile(String name, String base64, String mime) {
+            runOnUiThread(() -> {
+                try {
+                    insertMedia(MediaStore.Downloads.EXTERNAL_CONTENT_URI, name, mime, Environment.DIRECTORY_DOWNLOADS, Base64.decode(base64, Base64.DEFAULT));
+                    toast("Сохранено в «Загрузки»: " + name);
+                } catch (Exception e) { toast("Не удалось сохранить файл"); }
+            });
+        }
+
+        @JavascriptInterface
+        public void shareFile(String name, String base64, String mime) {
+            runOnUiThread(() -> {
+                try { shareBytes(name, mime, Base64.decode(base64, Base64.DEFAULT)); } catch (Exception e) { toast("Не удалось отправить файл"); }
             });
         }
 

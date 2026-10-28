@@ -199,7 +199,7 @@ const codeLabel = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `$
 const codeTime = (ctx, code, p) => { const s = shiftOf(ctx, code, p); return `${s.start}–${s.end}`; };
 
 // Версия и сборка: 'artifact' — страница на claude.ai, 'web' — itch.io, браузер и приложение Android (сборщик подставляет сам).
-const APP_VERSION = '1.1.0', WEB_BUILD = 2, BUILD_TARGET = 'artifact';
+const APP_VERSION = '1.2.0', WEB_BUILD = 3, BUILD_TARGET = 'artifact';
 const inApp = () => !!window.AndroidApp;
 function emptyDefaults() {
   const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
@@ -765,7 +765,7 @@ function renderGrid() {
   el.innerHTML = `
   <section class="panel status">
     <div class="status-head">${multi ? '<h1>Все условия соблюсти не получилось</h1>' : c.viol.length ? '<h1>Есть нарушения</h1>' : '<h1 class="ok">Все условия соблюдены</h1>'}
-      <button class="btn" data-act="image">В общий чат (Картинка)</button></div>
+      <button class="btn" data-act="image">В общий чат (Картинка / PDF)</button></div>
     ${multi ? `<p class="note">Выберите вариант. В вариантах можно поменять чей-то выходной или рабочий день; отпуск не меняется.</p>
       <div class="seg" role="tablist">${S.cands.map((x, i) => `<button data-act="variant" data-i="${i}" aria-pressed="${i === S.sel}">${esc(x.title)}</button>`).join('')}</div>
       <p><b>${esc(c.title)}:</b> ${esc(c.desc || '')}</p>` : ''}
@@ -851,18 +851,19 @@ function renderSheet() {
       <p class="note">Всего ${n.long + n.short} чел. ${custom ? `Обычно — ${ctx.needLong + ctx.needShort}.` : 'Как в настройках.'}</p>
       ${custom ? '<button class="btn" data-act="dn-reset">Вернуть как обычно</button>' : ''}`;
   } else if (sh.type === 'image') {
-    body.innerHTML = `<header><h3>Картинка графика</h3>${close}</header>
+    body.innerHTML = `<header><h3>Картинка и PDF</h3>${close}</header>
       <img class="shot" src="${S.img.url}" alt="График смен, ${esc(S.img.title)}">
-      ${inApp() ? `<div class="btns"><button class="btn primary" data-act="share">Поделиться</button><button class="btn" data-act="save-img">Сохранить в галерею</button><button class="btn" data-act="print">Печать</button></div>
-        <p class="note">«Поделиться» — отправить в Telegram, WhatsApp или другой мессенджер.</p>`
-      : BUILD_TARGET === 'web' ? `<div class="btns">${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}<button class="btn" data-act="save-img">Скачать картинку</button><button class="btn" data-act="print">Печать</button></div>`
-      : `<p class="note">Нажмите на картинку и удерживайте, затем выберите «Сохранить в Фото» или «Поделиться» и отправьте в Telegram или WhatsApp. Для печати: «Поделиться» → «Напечатать».</p>
-        ${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}`}`;
+      ${inApp() ? `<div class="btns"><button class="btn primary" data-act="share">Поделиться картинкой</button><button class="btn" data-act="share-pdf">Поделиться PDF</button></div>
+        <div class="btns"><button class="btn" data-act="save-img">Сохранить в галерею</button><button class="btn" data-act="save-pdf">Сохранить PDF</button><button class="btn" data-act="print">Печать</button></div>
+        <p class="note">«Поделиться» — отправить в Telegram, WhatsApp или другой мессенджер. PDF сохраняется в «Загрузки».</p>`
+      : BUILD_TARGET === 'web' ? `<div class="btns">${navigator.canShare ? '<button class="btn primary" data-act="share">Поделиться</button>' : ''}<button class="btn" data-act="save-img">Скачать картинку</button><button class="btn" data-act="save-pdf">Скачать PDF</button><button class="btn" data-act="print">Печать</button></div>`
+      : `<div class="btns"><button class="btn" data-act="save-img">Сохранить картинку</button><button class="btn" data-act="save-pdf">Сохранить PDF</button>${navigator.canShare ? '<button class="btn" data-act="share">Поделиться</button>' : ''}</div>
+        <p class="note">Ещё можно нажать на картинку и удерживать, затем выбрать «Сохранить в Фото» или «Поделиться» и отправить в Telegram или WhatsApp.</p>`}`;
   } else if (sh.type === 'backup') {
     const text = JSON.stringify(exportData());
     body.innerHTML = `<header><h3>Резервная копия</h3>${close}</header>
       <p class="note">Копия хранит всё: сотрудников, календари и настройки. Сохраните её перед переходом на другое устройство или в другую версию приложения.</p>
-      <div class="btns">${BUILD_TARGET === 'web' ? '<button class="btn primary" data-act="backup-file">Сохранить файл</button>' : ''}<button class="btn" data-act="backup-copy">Скопировать текст</button></div>
+      <div class="btns"><button class="btn primary" data-act="backup-file">Сохранить файл</button><button class="btn" data-act="backup-copy">Скопировать текст</button></div>
       <textarea id="backup-text" readonly rows="4" aria-label="Данные копии">${esc(text)}</textarea>
       <h4>Восстановить из копии</h4>
       <div class="btns"><label class="btn">Выбрать файл<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain" hidden></label></div>
@@ -961,6 +962,41 @@ function shareImage() {
   }, 'image/png');
 }
 
+// PDF из картинки графика: одна страница A4 альбомная, картинка вписана с полями.
+function makePdf(canvas) {
+  const jpg = atob(canvas.toDataURL('image/jpeg', 0.92).split(',')[1]);
+  const W = 842, H = 595, m = 24, s = Math.min((W - 2 * m) / canvas.width, (H - 2 * m) / canvas.height);
+  const w = canvas.width * s, h = canvas.height * s, f = n => n.toFixed(2);
+  const draw = `q ${f(w)} 0 0 ${f(h)} ${f((W - w) / 2)} ${f((H - h) / 2)} cm /Im0 Do Q`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`,
+    `<< /Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n${jpg}\nendstream`,
+    `<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`
+  ];
+  let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offsets = objects.map((o, i) => { const at = out.length; out += `${i + 1} 0 obj\n${o}\nendobj\n`; return at; });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('')}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  const bytes = new Uint8Array(out.length);
+  for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+  return bytes;
+}
+function bytesToBase64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode(...bytes.subarray(i, i + 32768));
+  return btoa(bin);
+}
+// Сохранить файл: на claude.ai — через окно сохранения, в браузере и на itch.io — обычной загрузкой.
+async function saveFile(name, blob) {
+  if (BUILD_TARGET !== 'artifact') { downloadFile(name, URL.createObjectURL(blob)); return; }
+  const downloads = await window.claude?.use?.('downloads');
+  if (!downloads) { toast('Сохранение файлов здесь недоступно'); return; }
+  try { await downloads.save({ filename: name, data: blob }); }
+  catch (e) { if (e?.code !== 'declined') toast('Не удалось сохранить файл'); }
+}
 function downloadFile(name, url) {
   const a = document.createElement('a');
   a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
@@ -1055,15 +1091,22 @@ document.addEventListener('click', ev => {
     case 'share': if (inApp()) window.AndroidApp.shareImage(S.img.url); else shareImage(); break;
     case 'save-img':
       if (inApp()) window.AndroidApp.saveImage(S.img.url, `График ${S.img.title}.png`);
-      else S.img.canvas.toBlob(blob => downloadFile(`grafik-smen-${ymKey(S.gctx.year, S.gctx.month)}.png`, URL.createObjectURL(blob)), 'image/png');
+      else S.img.canvas.toBlob(blob => saveFile(`grafik-smen-${ymKey(S.gctx.year, S.gctx.month)}.png`, blob), 'image/png');
       break;
+    case 'save-pdf': case 'share-pdf': {
+      const name = `grafik-smen-${ymKey(S.gctx.year, S.gctx.month)}.pdf`, pdf = makePdf(S.img.canvas);
+      if (inApp() && !window.AndroidApp.saveFile) toast('Обновите приложение, чтобы сохранять PDF');
+      else if (inApp()) window.AndroidApp[b.dataset.act === 'share-pdf' ? 'shareFile' : 'saveFile'](name, bytesToBase64(pdf), 'application/pdf');
+      else saveFile(name, new Blob([pdf], { type: 'application/pdf' }));
+      break;
+    }
     case 'print': if (inApp()) window.AndroidApp.printImage(S.img.url); else printImage(S.img.url); break;
     case 'backup': S.sheet = { type: 'backup' }; renderSheet(); break;
     case 'backup-copy': copyText($('#backup-text')); break;
     case 'backup-file': {
       const name = `grafik-smen-${new Date().toISOString().slice(0, 10)}.json`, text = $('#backup-text').value;
       if (inApp()) window.AndroidApp.saveText(name, text);
-      else downloadFile(name, URL.createObjectURL(new Blob([text], { type: 'application/json' })));
+      else saveFile(name, new Blob([text], { type: 'application/json' }));
       break;
     }
     case 'restore': {

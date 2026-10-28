@@ -37,7 +37,8 @@ public class ShareProvider extends ContentProvider {
 
     @Override
     public String getType(Uri uri) {
-        return "image/png";
+        String name = String.valueOf(uri.getLastPathSegment());
+        return name.endsWith(".pdf") ? "application/pdf" : "image/png";
     }
 
     @Override
@@ -45,7 +46,7 @@ public class ShareProvider extends ContentProvider {
         File file;
         try { file = fileFor(uri); } catch (FileNotFoundException e) { return null; }
         MatrixCursor cursor = new MatrixCursor(new String[] { OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE });
-        cursor.addRow(new Object[] { "График смен.png", file.length() });
+        cursor.addRow(new Object[] { file.getName().endsWith(".pdf") ? "График смен.pdf" : "График смен.png", file.length() });
         return cursor;
     }
 
